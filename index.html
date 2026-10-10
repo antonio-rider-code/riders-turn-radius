@@ -63,14 +63,14 @@ body{color:var(--fg);font:400 15px/1.5 var(--font-body);-webkit-font-smoothing:a
 h1{margin:0;font:800 clamp(26px,4.2vw,44px)/1.05 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
 h1 span{color:var(--muted)}
 
-.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);grid-template-areas:"plan" "side" "front" "chart" "notes"}
+.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);grid-template-areas:"plan" "side" "front" "flex" "chart" "notes"}
 @media (min-width:640px){
-  .grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"plan plan" "side side" "front chart" "notes notes"}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"plan plan" "side side" "front flex" "chart notes"}
   .side{flex-direction:row}
   .side>.panel{flex:1 1 0}
 }
 @media (min-width:980px){
-  .grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"plan plan side" "front chart notes"}
+  .grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"plan plan side" "front flex chart" "notes notes notes"}
   .side{flex-direction:column}
   .side>.panel{flex:0 0 auto}
   .side>.controls{flex:1 1 auto}
@@ -79,6 +79,7 @@ h1 span{color:var(--muted)}
 .side{grid-area:side;display:flex;flex-direction:column;gap:12px;min-width:0}
 .front{grid-area:front}
 .chart{grid-area:chart}
+.flex{grid-area:flex}
 .notes{grid-area:notes}
 
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
@@ -138,6 +139,13 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .notes p,.notes li{font-size:13.5px;line-height:1.5;color:var(--muted)}
 .notes p{margin:0}
 .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px}
+.ncols{display:flex;flex-direction:column;gap:12px}
+.nlead{display:flex;flex-direction:column;gap:12px}
+@media (min-width:980px){
+  .ncols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:28px;align-items:start}
+  .ncols ul{display:block;columns:2;column-gap:28px}
+  .ncols li{break-inside:avoid;margin-bottom:10px}
+}
 .notes b{color:var(--fg);font-weight:600}
 
 /* svg */
@@ -148,6 +156,11 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .trail{fill:none;stroke:var(--blue);stroke-width:4;stroke-linecap:round}
 .trail.thin{stroke-width:2}
 .tgr{fill:var(--green)}
+.groove{fill:var(--blue-soft);stroke:none}
+.chord{stroke:var(--muted);stroke-width:1;stroke-dasharray:1 4}
+.load{fill:none;stroke:var(--fg);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.dimline{stroke:var(--fg);stroke-width:1}
+.curve-geo{fill:none;stroke:var(--blue);stroke-width:1;stroke-dasharray:3 3;stroke-opacity:.6}
 .tbl{fill:var(--blue)}
 .track{fill:none;stroke:var(--blue);stroke-opacity:.3;stroke-width:1.5}
 .osc{fill:none;stroke:var(--blue);stroke-opacity:.4;stroke-width:1;stroke-dasharray:2 4}
@@ -267,7 +280,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       <section class="panel readout" aria-labelledby="hR">
         <div class="phead"><h2 id="hR">Радиус поворота</h2><span>R</span></div>
         <div class="big"><span id="rOut">10,6</span><span class="unit">м</span></div>
-        <p class="formula"><b id="fSc">15,0</b> м × cos <b class="g" id="fTh">45</b>° = <b class="bl" id="fR">10,6</b> м</p>
+        <p class="formula"><b id="fSc">15,0</b> м × cos <b class="g" id="fTh">45</b>° = <b class="bl" id="fR">10,6</b> м<span id="fFlex" hidden> · <span id="fFlexW">с врезанием</span> <b id="fFlexP">0</b> мм — <b class="bl" id="fFlexR">10,6</b> м</span></p>
         <dl class="stats">
           <div><dt>Короче выреза</dt><dd id="sShort">на 29 %</dd></div>
           <div><dt>Перегрузка*</dt><dd id="sG">1,41 g</dd></div>
@@ -333,6 +346,36 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       <p class="caption" data-ski="Голени идут вдоль ботинок — под углом закантовки θ. Наклон тела λ — линия от опоры через центр масс. Разница между ними — ангуляция: колени и таз уходят внутрь поворота, корпус остаётся ровнее. Зелёные точки — канты, на которых держится поворот." data-board="Райдер сбоку, поворот на пяточном канте: хайбэк держит голень, колени согнуты. θ — угол закантовки доски, λ — наклон тела: линия от канта через центр масс. С ангуляцией работают колени и таз, корпус остаётся ровнее.">Голени идут вдоль ботинок — под углом закантовки θ. Наклон тела λ — линия от опоры через центр масс. Разница между ними — ангуляция: колени и таз уходят внутрь поворота, корпус остаётся ровнее. Зелёные точки — канты, на которых держится поворот.</p>
     </section>
 
+    <section class="panel flex" aria-labelledby="hX">
+      <div class="phead"><h2 id="hX">Прогиб <span data-ski="лыжи" data-board="доски">лыжи</span></h2><div class="legend"><span><i class="sw dash"></i>по геометрии</span><span><i class="sw"></i>с врезанием</span></div></div>
+      <svg class="fig" viewBox="0 0 360 270" role="img" aria-label="Прогиб: вид сбоку на врезание канта и вид сверху на дугу канта">
+        <text id="xSideL" class="t" x="8" y="14">СБОКУ</text>
+        <g id="xHatch"></g>
+        <path id="xGroove" class="groove"/>
+        <line class="snowline" x1="14" y1="58" x2="346" y2="58"/>
+        <g id="xGear"></g>
+        <g id="xDim"></g>
+        <text id="xTopL" class="t" x="8" y="146">СВЕРХУ</text>
+        <line id="xChord" class="chord" x1="40" y1="164" x2="310" y2="164"/>
+        <path id="xGeo" class="c-sc"/>
+        <path id="xFlex" class="curve"/>
+        <text id="xGeoL" class="t halo" x="14" y="246"></text>
+        <text id="xFlexL" class="t bl halo" x="14" y="263"></text>
+      </svg>
+      <div class="ctrl">
+        <div class="chead"><label for="flexIn">Врезание канта под ботинком</label><output id="flexOut" for="flexIn">0 мм</output></div>
+        <input type="range" id="flexIn" min="-10" max="40" step="1" value="0">
+        <div class="ends"><span>−10 мм</span><span>40 мм</span></div>
+      </div>
+      <dl class="stats">
+        <div><dt>Глубина выреза d</dt><dd id="xD">17,5 мм</dd></div>
+        <div><dt>Прогиб δ</dt><dd id="xDelta">17,5 мм</dd></div>
+        <div><dt>Радиус</dt><dd id="xR">10,6 м</dd></div>
+      </dl>
+      <p class="caption" data-ski="Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение." data-board="Чтобы поставленная на кант доска легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: доска прогнута сильнее, дуга круче. Жёсткую доску на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,25 м; p задаётся вручную — это ориентир, не измерение.">Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение.</p>
+    </section>
+
+
     <section class="panel chart" aria-labelledby="hC">
       <div class="phead"><h2 id="hC">Радиус от угла</h2><div class="legend"><span><i class="sw"></i>R</span><span><i class="sw dash"></i>Вырез</span></div></div>
       <svg class="fig" viewBox="0 0 320 220" role="img" aria-label="График: радиус поворота в зависимости от угла закантовки">
@@ -341,6 +384,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
         <path id="cArea" class="area"/>
         <line id="cLevel" class="lvl"/>
         <text id="cLevelL" class="t halo" text-anchor="end">R выреза</text>
+        <path id="cGeo" class="curve-geo"/>
         <path id="cCurve" class="curve"/>
         <line id="cGv" class="guide"/>
         <line id="cGh" class="guide"/>
@@ -352,14 +396,19 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
     <section class="panel notes" aria-labelledby="hN">
       <div class="phead"><h2 id="hN">Как считается</h2></div>
-      <p class="f">R = R<sub>выреза</sub> × cos θ</p>
-      <p><span data-ski="Лыжу" data-board="Доску">Лыжу</span> ставят на кант под углом θ и прогибают, пока кант не ляжет на снег по всей длине. Чем больше угол, тем сильнее прогиб и тем круче дуга.</p>
-      <ul>
-        <li><b>До 30°</b> радиус почти не меняется: минус 13 %. Дальше он падает всё быстрее: на 45° остаётся 71 % радиуса выреза, на 60° — половина.</li>
-        <li>Формула одна для лыж и сноуборда. Разница в радиусе выреза: у доски он обычно примерно вдвое меньше, поэтому дуги круче.</li>
-        <li>Модель идеальная: твёрдый склон, ведение на канте без проскальзывания. Жёсткость, мягкий снег и техника меняют реальную дугу. На малых углах <span data-ski="лыжа" data-board="доска">лыжа</span> держит слабо и легко соскальзывает.</li>
-        <li>* Скорость равновесия — при ней наклон тела уравновешивает поворот: медленнее — завалишься внутрь, быстрее — вынесет наружу. Оценка без учёта уклона: v = √(g · R · tg λ), перегрузка = 1 / cos λ, где λ — наклон тела. Без ангуляции λ равен углу закантовки; с ангуляцией тело наклонено меньше, и скорость нужна меньше.</li>
-      </ul>
+      <div class="ncols">
+        <div class="nlead">
+          <p class="f">R = R<sub>выреза</sub> × cos θ</p>
+          <p><span data-ski="Лыжу" data-board="Доску">Лыжу</span> ставят на кант под углом θ и прогибают, пока кант не ляжет на снег по всей длине. Чем больше угол, тем сильнее прогиб и тем круче дуга.</p>
+        </div>
+        <ul>
+          <li><b>До 30°</b> радиус почти не меняется: минус 13 %. Дальше он падает всё быстрее: на 45° остаётся 71 % радиуса выреза, на 60° — половина.</li>
+          <li>Формула одна для лыж и сноуборда. Разница в радиусе выреза: у доски он обычно примерно вдвое меньше, поэтому дуги круче.</li>
+          <li><b>Прогиб.</b> С врезанием канта R = L² / (8h), h = d / cos θ + p · tg θ, где L — длина канта, d = L² / (8 · R выреза) — глубина выреза, p — врезание канта под ботинком. При p = 0 это та же формула. Не учтены жёсткость по длине, кручение носка, камбер и рокер.</li>
+          <li>Модель идеальная: ведение на канте без проскальзывания. На малых углах <span data-ski="лыжа" data-board="доска">лыжа</span> держит слабо и легко соскальзывает.</li>
+          <li>* Скорость равновесия — при ней наклон тела уравновешивает поворот: медленнее — завалишься внутрь, быстрее — вынесет наружу. Оценка без учёта уклона: v = √(g · R · tg λ), перегрузка = 1 / cos λ, где λ — наклон тела. Без ангуляции λ равен углу закантовки; с ангуляцией тело наклонено меньше, и скорость нужна меньше.</li>
+        </ul>
+      </div>
     </section>
   </main>
 </div>
@@ -368,11 +417,11 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 (() => {
   const MODES = {
     ski: {
-      scMin: 10, scMax: 35, scStep: 0.5, thMax: 90, real: 70, len: 1.65, wid: 0.07, yTicks: [0, 10, 20, 30],
+      scMin: 10, scMax: 35, scStep: 0.5, thMax: 90, real: 70, edge: 1.50, len: 1.65, wid: 0.07, yTicks: [0, 10, 20, 30],
       hint: 'У слаломных лыж около 13 м, у гигантских — от 30 м. Обычно радиус напечатан на самой лыже.'
     },
     board: {
-      scMin: 5, scMax: 15, scStep: 0.5, thMax: 90, real: 80, len: 1.55, wid: 0.25, yTicks: [0, 5, 10, 15],
+      scMin: 5, scMax: 15, scStep: 0.5, thMax: 90, real: 80, edge: 1.25, len: 1.55, wid: 0.25, yTicks: [0, 5, 10, 15],
       hint: 'У большинства досок 7–10 м. Значение указано в характеристиках модели.'
     }
   };
@@ -390,20 +439,21 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
   // ang — ангуляция, °: насколько угол закантовки больше наклона тела
-  const state = { mode: 'ski', ski: { th: 45, sc: 15, ang: 0 }, board: { th: 45, sc: 8, ang: 0 } };
+  const state = { mode: 'ski', ski: { th: 45, sc: 15, ang: 0, flex: 0 }, board: { th: 45, sc: 8, ang: 0, flex: 0 } };
   try { const m = localStorage.getItem('rs-turn-mode'); if (m === 'ski' || m === 'board') state.mode = m; } catch (e) {}
 
-  const angle = $('angle'), sidecut = $('sidecut'), leanIn = $('lean'), play = $('play');
+  const angle = $('angle'), sidecut = $('sidecut'), leanIn = $('lean'), flexIn = $('flexIn'), play = $('play');
   let cur = null, last = 0, playing = false, dir = 1;
 
   function calc() {
     const m = MODES[state.mode], st = state[state.mode];
     const th = st.th * RAD;
-    const R = st.sc * Math.cos(th);
+    const fx = flexAt(st.sc, th, st.flex), R = fx.R;   // радиус с учётом врезания канта (при p = 0 — R_выреза · cos θ)
     // наклон тела λ = закантовка − ангуляция; равновесие на дуге: tg λ = v² / (g·R)
     const lamMin = Math.max(0, Math.min(st.th, Math.ceil(lamOf(pose(th, bendHi(th))) / RAD - 1e-9)));
     const lean = Math.min(st.th, Math.max(lamMin, st.th - st.ang)), lam = lean * RAD;
-    return { m, st, th, R, lean, lam, lamMin, v: Math.sqrt(Math.max(0, G * st.sc * Math.cos(th) * Math.tan(lam))) };
+    const v = Math.sqrt(Math.max(0, G * R * Math.tan(lam)));
+    return { m, st, th, R, fx, lean, lam, lamMin, v: isFinite(v) ? v : 0 };
   }
 
   /* ---------- вид сверху: склон и S-образный след ---------- */
@@ -516,10 +566,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     // Радиус в каждой точке — R_выреза × cos θ, поэтому дуга пологая на входе и выходе и крутая в вершине.
     const sc = c.st.sc, thMax = c.th;
     const thOf = psi => thMax * Math.cos(Math.PI / 2 * Math.min(1, Math.abs(psi) / PHI));
-    const rOf = psi => Math.max(sc * Math.cos(thOf(psi)) * S, 0.5);
+    const rOf = psi => Math.max(flexAt(sc, thOf(psi), c.st.flex).R * S, 0.5);
     const r = rOf(0);
     track = buildTrack(rOf, thOf);
-    track.sc = sc;
+    track.Rof = th => flexAt(sc, th, c.st.flex).R;
     const ghost = buildTrack(() => sc * S, () => 0);
     $('ghost').setAttribute('d', offsetPath(ghost.pts, 0));
     const h = SEP / 2;
@@ -570,7 +620,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     const p = posAt(s);
     $('pGear').setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(p.psi / RAD).toFixed(2)})`);
     $('liveTh').textContent = 'θ ' + Math.round(p.th / RAD) + '°';
-    $('liveR').textContent = 'R ' + f1(track.sc * Math.cos(p.th)) + ' м';
+    $('liveR').textContent = 'R ' + f1(track.Rof(p.th)) + ' м';
     const f = track.total ? s / track.total : 0;
     ['doneL', 'doneR'].forEach(id => {
       const e = $(id);
@@ -743,6 +793,98 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     set($('fLamL'), { x: rf.x + 6, y: Math.max(14, cm.y - ext - 4) });
   }
 
+  /* ---------- прогиб ---------- */
+  // Радиус с учётом прогиба: R = L² / (8h), h = d / cos θ + p · tg θ (в метрах).
+  // L — длина канта, d = L² / (8 · R_выреза) — глубина выреза, p — насколько кант под ботинком
+  // врезан в снег глубже носка и пятки. При p = 0 это R_выреза · cos θ.
+  // Вверх снаряд не прогибается: полный прогиб δ = d · tg θ + p / cos θ не меньше нуля, отсюда p ≥ −d · sin θ.
+  function flexAt(sc, th, pmm) {
+    const L = MODES[state.mode].edge, d = L * L / (8 * sc);
+    const p = Math.max(pmm / 1000, -d * Math.sin(th));
+    const h = d / Math.cos(th) + p * Math.tan(th);
+    return { L, d, p, h, R: L * L / (8 * h), delta: d * Math.tan(th) + p / Math.cos(th) };
+  }
+
+  // Схема: контакт канта от хвоста FX.a до носа FX.b, линия снега FX.sy, по высоте FX.vs px на мм
+  const FX = { a: 40, b: 310, sy: 58, vs: 1.6, cy: 164, hmax: 62 };
+  const mmTxt = v => (!isFinite(v) || Math.abs(v) > 9999) ? '∞' : f1(v) + ' мм';
+
+  (function buildHatch() {
+    const g = $('xHatch');
+    for (let x = 22; x <= 346; x += 10) mk('line', { x1: x, y1: FX.sy + 1, x2: x - 7, y2: FX.sy + 9, class: 'hatch' }, g);
+  })();
+
+  function renderFlex(c) {
+    const ski = state.mode === 'ski', th = c.th, fx = c.fx;
+    const pmm = fx.p * 1000, cx = (FX.a + FX.b) / 2, half = (FX.b - FX.a) / 2;
+    const yAt = x => { const u = (x - cx) / half; return FX.sy + pmm * FX.vs * (1 - u * u); };
+    const mmPx = (FX.b - FX.a) / (fx.L * 1000);
+
+    $('xSideL').textContent = 'СБОКУ · ВЫСОТА ×' + Math.round(FX.vs / mmPx);
+
+    // врезание: снег между поверхностью и кантом
+    let groove = `M${FX.a} ${FX.sy}`;
+    for (let i = 0; i <= 40; i++) { const x = FX.a + (FX.b - FX.a) * i / 40; groove += `L${x.toFixed(1)} ${yAt(x).toFixed(1)}`; }
+    $('xGroove').setAttribute('d', pmm > 0.3 ? groove + 'Z' : '');
+
+    // снаряд сбоку: полоса над кантом, нос справа загнут
+    const g = $('xGear'); g.textContent = '';
+    const n = 40, bot = [], top = [];
+    for (let i = 0; i <= n; i++) { const x = FX.a + (FX.b - FX.a) * i / n, y = yAt(x); bot.push(`${x.toFixed(1)} ${y.toFixed(1)}`); top.unshift(`${x.toFixed(1)} ${(y - 6).toFixed(1)}`); }
+    const tipL = ski ? 26 : 22, tipU = ski ? 14 : 10, tailL = ski ? 14 : 22, tailU = ski ? 6 : 10;
+    const body = `M${bot.join('L')}` +
+      `Q${FX.b + tipL * 0.7} ${FX.sy} ${FX.b + tipL} ${FX.sy - tipU}L${FX.b + tipL - 2} ${FX.sy - tipU - 5}Q${FX.b + tipL * 0.55} ${FX.sy - 6} ${top[0]}` +
+      `L${top.join('L')}` +
+      `Q${FX.a - tailL * 0.55} ${FX.sy - 6} ${FX.a - tailL + 2} ${FX.sy - tailU - 5}L${FX.a - tailL} ${FX.sy - tailU}Q${FX.a - tailL * 0.7} ${FX.sy} ${FX.a} ${FX.sy}Z`;
+    mk('path', { d: body, class: 'ski' }, g);
+    const arrow = (x, y) => {
+      mk('line', { x1: x, y1: y - 18, x2: x, y2: y - 3, class: 'load' }, g);
+      mk('path', { d: `M${x - 4} ${y - 8}L${x} ${y - 2}L${x + 4} ${y - 8}`, class: 'load' }, g);
+    };
+    if (ski) {
+      const yc = yAt(cx) - 6;
+      mk('rect', { x: cx - 28, y: yc - 6, width: 56, height: 6, rx: 1, class: 'part' }, g);
+      mk('path', { d: 'M-25 0H27L26 -14Q22 -21 12 -23L10 -48H-14L-17 -24Q-25 -17 -25 0Z', transform: `translate(${cx} ${yc - 6})`, class: 'boot' }, g);
+      arrow(cx - 2, yc - 56);
+    } else {
+      [-58, 58].forEach(dx => {
+        const x = cx + dx, yc = yAt(x) - 6;
+        mk('rect', { x: x - 16, y: yc - 4, width: 32, height: 4, rx: 1, class: 'part' }, g);
+        mk('path', { d: 'M-17 0H19Q23 0 23 -5Q21 -11 12 -13L8 -24V-36H-10L-12 -14Q-17 -10 -17 0Z', transform: `translate(${x} ${yc - 4})`, class: 'boot' }, g);
+        arrow(x - 1, yc - 42);
+      });
+    }
+
+    // размер p: от поверхности до канта под ботинком
+    const dg = $('xDim'); dg.textContent = '';
+    const ye = yAt(cx), dx = cx + 44;
+    if (Math.abs(pmm) > 0.3) {
+      mk('line', { x1: cx, y1: ye, x2: dx + 4, y2: ye, class: 'guide' }, dg);
+      mk('line', { x1: dx, y1: FX.sy, x2: dx, y2: ye, class: 'dimline' }, dg);
+    }
+    mk('text', { x: dx + 8, y: pmm > 0.3 ? Math.min(ye + 15, 134) : FX.sy + 22, class: 't fg halo' }, dg).textContent =
+      'p ' + (pmm > 0.3 ? '' : pmm < -0.3 ? '−' : '') + f1(Math.abs(pmm)).replace(',0', '') + ' мм' + (pmm < -0.3 ? ' · зазор' : '');
+
+    // сверху: дуга канта по геометрии и с прогибом (глубина дуги в увеличенном масштабе)
+    const hg = (fx.d / Math.cos(th)) * 1000, hf = fx.h * 1000;
+    const k = Math.min(3, FX.hmax / Math.max(hg, hf, 1));
+    const ex = k / mmPx;
+    $('xTopL').textContent = 'СВЕРХУ · ГЛУБИНА ДУГИ КАНТА' + (ex >= 1 ? ' ×' + Math.round(ex) : '');
+    const arc = h => { let d = ''; for (let i = 0; i <= 40; i++) { const x = FX.a + (FX.b - FX.a) * i / 40, u = (x - cx) / half; d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + (FX.cy + h * k * (1 - u * u)).toFixed(1); } return d; };
+    const same = Math.abs(pmm) < 0.3;
+    $('xGeo').setAttribute('d', same ? '' : arc(hg));
+    $('xFlex').setAttribute('d', arc(hf));
+    const Rgeo = c.st.sc * Math.cos(th);
+    $('xGeoL').textContent = same ? '' : `по геометрии: h ${mmTxt(hg)} · R ${f1(Rgeo)} м`;
+    $('xFlexL').textContent = (same ? '' : pmm > 0 ? 'с врезанием: ' : 'с зазором: ') + `h ${mmTxt(hf)} · R ${f1(c.R)} м`;
+
+    $('xD').textContent = mmTxt(fx.d * 1000);
+    $('xDelta').textContent = mmTxt(fx.delta * 1000);
+    $('xR').textContent = f1(c.R) + ' м';
+    $('flexOut').textContent = (c.st.flex > 0 ? '+' : c.st.flex < 0 ? '−' : '') + Math.abs(c.st.flex) + ' мм';
+    fill(flexIn);
+  }
+
   /* ---------- график ---------- */
   const CH = { L: 40, R: 302, T: 22, B: 182 };
   const xs = d => CH.L + d / MODES[state.mode].thMax * (CH.R - CH.L);
@@ -766,8 +908,13 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   function renderChart(c) {
     const m = c.m, sc = c.st.sc;
     let d = '';
-    for (let a = 0; a <= m.thMax; a += 1) d += (a ? 'L' : 'M') + xs(a).toFixed(1) + ' ' + ys(sc * Math.cos(a * RAD)).toFixed(1);
+    let dg = '';
+    for (let a = 0; a <= m.thMax; a += 1) {
+      d += (a ? 'L' : 'M') + xs(a).toFixed(1) + ' ' + ys(flexAt(sc, a * RAD, c.st.flex).R).toFixed(1);
+      dg += (a ? 'L' : 'M') + xs(a).toFixed(1) + ' ' + ys(sc * Math.cos(a * RAD)).toFixed(1);
+    }
     $('cCurve').setAttribute('d', d);
+    $('cGeo').setAttribute('d', c.st.flex ? dg : '');
     $('cArea').setAttribute('d', d + `L${xs(m.thMax).toFixed(1)} ${CH.B}L${CH.L} ${CH.B}Z`);
     const yl = ys(sc);
     set($('cLevel'), { x1: CH.L, x2: CH.R, y1: yl, y2: yl });
@@ -793,8 +940,12 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     $('rOut').textContent = f1(c.R);
     $('fSc').textContent = f1(c.st.sc);
     $('fTh').textContent = deg;
-    $('fR').textContent = f1(c.R);
-    $('sShort').textContent = 'на ' + Math.round((1 - Math.cos(c.th)) * 100) + ' %';
+    $('fR').textContent = f1(c.st.sc * Math.cos(c.th));
+    $('fFlex').hidden = !c.st.flex;
+    $('fFlexW').textContent = c.st.flex > 0 ? 'с врезанием' : 'с зазором';
+    $('fFlexP').textContent = Math.abs(c.st.flex);
+    $('fFlexR').textContent = f1(c.R);
+    $('sShort').textContent = 'на ' + Math.round((1 - c.R / c.st.sc) * 100) + ' %';
     const gl = 1 / Math.max(1e-6, Math.cos(c.lam));
     $('sG').textContent = gl > 20 ? '> 20 g' : f2(gl) + ' g';
     const warn = $('angleWarn'), real = c.m.real;
@@ -821,7 +972,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
   function render() {
     cur = calc();
-    renderPlan(cur); renderFront(cur); renderChart(cur); renderReadout(cur); drawMover();
+    renderPlan(cur); renderFront(cur); renderFlex(cur); renderChart(cur); renderReadout(cur); drawMover();
   }
 
   /* ---------- режим ---------- */
@@ -833,6 +984,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     $('mBoard').setAttribute('aria-pressed', mode === 'board');
     angle.max = m.thMax; angle.value = Math.round(st.th);
     sidecut.min = m.scMin; sidecut.max = m.scMax; sidecut.step = m.scStep; sidecut.value = st.sc;
+    flexIn.value = st.flex;
     $('angleMax').textContent = m.thMax + '°';
     $('scMin').textContent = m.scMin + ' м';
     $('scMax').textContent = m.scMax + ' м';
@@ -876,6 +1028,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     state[state.mode].th = +angle.value; render();
   });
   sidecut.addEventListener('input', () => { state[state.mode].sc = +sidecut.value; render(); });
+  flexIn.addEventListener('input', () => { state[state.mode].flex = +flexIn.value; render(); });
   leanIn.addEventListener('input', () => {
     const st = state[state.mode];
     st.ang = Math.max(0, Math.round(st.th) - +leanIn.value);
