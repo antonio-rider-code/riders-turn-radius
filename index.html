@@ -147,6 +147,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .c-turn{fill:none;stroke:var(--blue);stroke-width:1.5;stroke-opacity:.5}
 .trail{fill:none;stroke:var(--blue);stroke-width:4;stroke-linecap:round}
 .trail.thin{stroke-width:2}
+.tgr{fill:var(--green)}
+.tbl{fill:var(--blue)}
 .track{fill:none;stroke:var(--blue);stroke-opacity:.3;stroke-width:1.5}
 .osc{fill:none;stroke:var(--blue);stroke-opacity:.4;stroke-width:1;stroke-dasharray:2 4}
 .r-sc{stroke:var(--muted);stroke-width:1}
@@ -252,12 +254,13 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
             <text id="rLabel" class="t bl halo"></text>
             <text id="ghostLabel" class="t halo" text-anchor="middle"></text>
             <text id="fallLabel" class="t halo" text-anchor="end" x="628" y="20">вниз по склону →</text>
+            <text id="liveL" class="t halo" x="12" y="20"><tspan id="liveTh" class="tgr">θ 0°</tspan><tspan dx="10" id="liveR" class="tbl">R 15,0 м</tspan></text>
             <path id="bar" class="barline"/>
             <text id="barLabel" class="t fg halo"></text>
           </g>
         </svg>
       </div>
-      <p class="caption" id="planCap">Склон сверху, спуск слева направо. Масштаб подстраивается под радиус выреза, клетка — 5 м; лыжи и след нарисованы в одном масштабе. Две лыжи — два следа, точки — смена кантов. Пунктир — такая же змейка с радиусом бокового выреза. Лыжи едут с расчётной скоростью*.</p>
+      <p class="caption" id="planCap">Склон сверху, спуск слева направо. Угол закантовки растёт от 0° в смене кантов (точки) до выбранного в вершине дуги, поэтому радиус уменьшается от радиуса выреза до R и снова растёт — слева вверху текущие θ и R. Масштаб подстраивается под радиус выреза, клетка — 5 м. Две лыжи — два следа. Пунктир — змейка с постоянным радиусом выреза. Лыжи едут со скоростью равновесия в вершине дуги*.</p>
     </section>
 
     <div class="side">
@@ -450,8 +453,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     set(bl, { x: bx + step + 8, y: by + 1 });
     bl.textContent = cell + ' м';
     $('planCap').textContent = state.mode === 'ski'
-      ? `Склон сверху, спуск слева направо. Масштаб подстраивается под радиус выреза, клетка — ${cell} м; лыжи и след нарисованы в одном масштабе. Две лыжи — два следа, точки — смена кантов. Пунктир — такая же змейка с радиусом бокового выреза. Лыжи едут с расчётной скоростью*.`
-      : `Склон сверху, спуск слева направо. Масштаб подстраивается под радиус выреза, клетка — ${cell} м; доска и след нарисованы в одном масштабе. Точки — смена кантов. Пунктир — такая же змейка с радиусом бокового выреза. Доска едет с расчётной скоростью*.`;
+      ? `Склон сверху, спуск слева направо. Угол закантовки растёт от 0° в смене кантов (точки) до выбранного в вершине дуги, поэтому радиус уменьшается от радиуса выреза до R и снова растёт — слева вверху текущие θ и R. Масштаб подстраивается под радиус выреза, клетка — ${cell} м. Две лыжи — два следа. Пунктир — змейка с постоянным радиусом выреза. Лыжи едут со скоростью равновесия в вершине дуги*.`
+      : `Склон сверху, спуск слева направо. Угол закантовки растёт от 0° в смене кантов (точки) до выбранного в вершине дуги, поэтому радиус уменьшается от радиуса выреза до R и снова растёт — слева вверху текущие θ и R. Масштаб подстраивается под радиус выреза, клетка — ${cell} м. Пунктир — змейка с постоянным радиусом выреза. Доска едет со скоростью равновесия в вершине дуги*.`;
   }
 
   function drawPlanGear() {
@@ -472,8 +475,9 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
   // Змейка из дуг радиуса r (px), спуск вдоль +x. Начало — смена кантов с курсом +PHI,
   // дальше повороты чередуются. Курс psi отсчитывается от линии спуска, по часовой — вниз кадра.
-  function buildTrack(r) {
-    const pts = [{ x: X0, y: Y0, psi: PHI, s: 0 }], apexes = [], edges = [{ x: X0, y: Y0 }];
+  // rOf(psi) — радиус дуги (px) при курсе psi, thOf(psi) — угол закантовки (рад) в этой точке
+  function buildTrack(rOf, thOf) {
+    const pts = [{ x: X0, y: Y0, psi: PHI, s: 0, th: thOf(PHI) }], apexes = [], edges = [{ x: X0, y: Y0 }];
     const step = 3 * RAD;
     let x = X0, y = Y0, psi = PHI, s = 0, dir = -1, turns = 0, apexDone = false;
     while (x < PW + 60 && turns < 200 && pts.length < 2500) {
@@ -482,13 +486,13 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       if (dir < 0 ? next <= target : next >= target) { next = target; end = true; }
       if (!apexDone && psi * next <= 0) {
         // вершина дуги: курс точно вдоль линии спуска
-        const ch = 2 * r * Math.sin(Math.abs(psi) / 2), mid = psi / 2;
+        const ch = 2 * rOf(psi / 2) * Math.sin(Math.abs(psi) / 2), mid = psi / 2;
         apexes.push({ x: x + ch * Math.cos(mid), y: y + ch * Math.sin(mid), dir });
         apexDone = true;
       }
-      const d = Math.abs(next - psi), ch = 2 * r * Math.sin(d / 2), mid = (psi + next) / 2;
+      const d = Math.abs(next - psi), mid = (psi + next) / 2, r = rOf(mid), ch = 2 * r * Math.sin(d / 2);
       x += ch * Math.cos(mid); y += ch * Math.sin(mid); s += r * d; psi = next;
-      pts.push({ x, y, psi, s });
+      pts.push({ x, y, psi, s, th: thOf(psi) });
       if (end) { dir = -dir; turns++; apexDone = false; edges.push({ x, y }); }
     }
     return { pts, apexes, edges, total: s };
@@ -508,9 +512,15 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
   function renderPlan(c) {
     if (c.st.sc !== scaleFor) setScale();
-    const r = Math.max(c.R * S, 0.5);
-    track = buildTrack(r);
-    const ghost = buildTrack(c.st.sc * S);
+    // Угол закантовки по ходу поворота: 0 в смене кантов (курс ±PHI), максимум — в вершине дуги.
+    // Радиус в каждой точке — R_выреза × cos θ, поэтому дуга пологая на входе и выходе и крутая в вершине.
+    const sc = c.st.sc, thMax = c.th;
+    const thOf = psi => thMax * Math.cos(Math.PI / 2 * Math.min(1, Math.abs(psi) / PHI));
+    const rOf = psi => Math.max(sc * Math.cos(thOf(psi)) * S, 0.5);
+    const r = rOf(0);
+    track = buildTrack(rOf, thOf);
+    track.sc = sc;
+    const ghost = buildTrack(() => sc * S, () => 0);
     $('ghost').setAttribute('d', offsetPath(ghost.pts, 0));
     const h = SEP / 2;
     $('planL').setAttribute('d', offsetPath(track.pts, -h));
@@ -520,7 +530,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
     const tg = $('pTicks'); tg.textContent = '';
     // точки смены кантов — только пока они не сливаются
-    if (2 * r * Math.sin(PHI) > 18)
+    if (track.edges.length < 2 || track.edges[1].x - track.edges[0].x > 18)
       track.edges.forEach(e => { if (e.x > 4 && e.x < PW - 4) mk('circle', { cx: e.x, cy: e.y, r: 3, class: 'tp' }, tg); });
 
     // радиус показываем на дуге ближе к середине кадра
@@ -550,7 +560,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     let lo = 0, hi = pts.length - 1;
     while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m].s <= s) lo = m; else hi = m; }
     const p = pts[lo], q = pts[hi], t = q.s > p.s ? Math.min(1, Math.max(0, (s - p.s) / (q.s - p.s))) : 0;
-    return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t, psi: p.psi + (q.psi - p.psi) * t };
+    return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t, psi: p.psi + (q.psi - p.psi) * t, th: p.th + (q.th - p.th) * t };
   }
 
   function drawMover() {
@@ -559,6 +569,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     const s = reduce.matches ? track.total * 0.55 : sPos * S;
     const p = posAt(s);
     $('pGear').setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(p.psi / RAD).toFixed(2)})`);
+    $('liveTh').textContent = 'θ ' + Math.round(p.th / RAD) + '°';
+    $('liveR').textContent = 'R ' + f1(track.sc * Math.cos(p.th)) + ' м';
     const f = track.total ? s / track.total : 0;
     ['doneL', 'doneR'].forEach(id => {
       const e = $(id);
