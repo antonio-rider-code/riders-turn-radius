@@ -32,6 +32,7 @@ img{max-width:100%}
   --steel:#1F5566;
   --helmet:#2B2F33;
   --pole:#4DFF0F;
+  --skiblue:#3DB8FF;
   --font-display:"Aeroport","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-body:"Aeroport","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -40,7 +41,7 @@ img{max-width:100%}
 }
 :root.light{
   --bg:#F2F3F5; --panel:#FFFFFF; --line:#D8DCE2; --grid:#E9ECF0; --fg:#000000; --muted:#5A616C;
-  --blue:#0068E6; --blue-soft:rgba(0,104,230,.10); --green:#1F8200; --part:#C9CED6; --pole:#2BC400; color-scheme:light;
+  --blue:#0068E6; --blue-soft:rgba(0,104,230,.10); --green:#1F8200; --part:#C9CED6; --pole:#2BC400; --skiblue:#0E9BEA; color-scheme:light;
 }
 
 *{box-sizing:border-box}
@@ -217,6 +218,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .p-sh{fill:var(--jacket);stroke:var(--bg);stroke-width:1}
 .p-head{fill:#F1F3F5;stroke:var(--bg);stroke-width:1}
 .p-boot{fill:var(--part);stroke:var(--fg);stroke-width:.8}
+body[data-mode="ski"] .ski,body[data-mode="ski"] #pGear .gear{fill:var(--skiblue)}
+body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
 .pole2d{fill:none;stroke:var(--pole);stroke-width:2.5;stroke-linecap:round}
 .torso{fill:var(--jacket);stroke:var(--fg);stroke-width:1.5;stroke-linejoin:round}
 .head{fill:var(--helmet);stroke:var(--fg);stroke-width:1.5}
@@ -609,9 +612,14 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     const m = MODES[state.mode], L = m.len * S;
     if (state.mode === 'ski') {
       // две лыжи по обе стороны от средней линии следа
-      const w = Math.max(2, m.wid * S);
-      mk('rect', { x: -L / 2, y: -SEP / 2 - w / 2, width: L, height: w, rx: w / 2, class: 'gear' }, g);
-      mk('rect', { x: -L / 2, y: SEP / 2 - w / 2, width: L, height: w, rx: w / 2, class: 'gear' }, g);
+      const sc = state.ski.sc, half = L / 2 * 0.91;
+      const wpx = x => { const y = x / S; return Math.max(1.6, 2 * S * (0.07 + y * y / sc)); };   // ширина ×2
+      const drawSki = cy => {
+        let top = '', bot = '';
+        for (let i = 0; i <= 20; i++) { const x = -half + 2 * half * i / 20, w = wpx(x) / 2; top += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + (cy - w).toFixed(1); bot = 'L' + x.toFixed(1) + ' ' + (cy + w).toFixed(1) + bot; }
+        mk('path', { d: top + `Q${(L / 2).toFixed(1)} ${(cy - wpx(half) / 2).toFixed(1)} ${(L / 2).toFixed(1)} ${cy.toFixed(1)}Q${(L / 2).toFixed(1)} ${(cy + wpx(half) / 2).toFixed(1)} ${half.toFixed(1)} ${(cy + wpx(half) / 2).toFixed(1)}` + bot + 'Z', class: 'gear' }, g);
+      };
+      drawSki(-SEP / 2); drawSki(SEP / 2);
     } else {
       const w = Math.max(4, m.wid * S);
       mk('rect', { x: -L / 2, y: -w / 2, width: L, height: w, rx: w / 2, class: 'gear' }, g);
@@ -910,6 +918,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     set($('fCom'), { cx: cm.x, cy: cm.y });
     $('fLamL').textContent = 'λ ' + Math.round(c.lean) + '°';
     set($('fLamL'), { x: rf.x + 6, y: Math.max(14, cm.y - ext - 4) });
+    if (V3.ok && state.mode === 'ski' && V3.gearSc !== c.st.sc) build3dGear();   // форма лыжи следует за радиусом выреза
     if (ANIM.on) ANIM.table = animTable(c);
     else update3d(p, c);
   }
@@ -948,7 +957,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       const mat = {
         jacket: M(0xF26A1B, 0.55), steel: M(0x6E7B85, 0.5, 0.2), dark: M(0x26292E, 0.5),
         white: M(0xEDF0F3, 0.35), black: M(0x17191C, 0.45), lens: M(0xFF8A2A, 0.12, 0.75), strap: M(0x4A5058, 0.6),
-        pants: M(0x1F5566, 0.62), skin: M(0xE2B59A, 0.7), helmet: M(0xF1F3F5, 0.28, 0.05), glove: M(0x1B1D20, 0.7), pole: new THREE.MeshStandardMaterial({ color: 0x4dff0f, emissive: 0x2a8a00, emissiveIntensity: 0.7, roughness: 0.35 })
+        pants: M(0x1F5566, 0.62), skin: M(0xE2B59A, 0.7), helmet: M(0xF1F3F5, 0.28, 0.05), glove: M(0x1B1D20, 0.7), ski: M(0x35B8FF, 0.32, 0.1), pole: new THREE.MeshStandardMaterial({ color: 0x4dff0f, emissive: 0x2a8a00, emissiveIntensity: 0.7, roughness: 0.35 })
       };
       const snowMat = M(0xe6eaf0, 0.95);
       const snow = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), snowMat);
@@ -1059,6 +1068,29 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     }
   })();
 
+  // Карвинговая лыжа, вид сверху — «песочные часы»: ширина = талия + y² / R_выреза (две стрелки выреза),
+  // нос и пятка за точками контакта скруглены, нос загнут вверх. Опорный кант талии — в x = 0, нос к зрителю (+z).
+  function skiGeometry(sc) {
+    const waist = 0.07, half = 0.75, c = waist / 2;
+    const wTip = waist + half * half / sc;
+    const width = y => y > half ? wTip * Math.sqrt(Math.max(0, 1 - ((y - half) / 0.16) ** 2))
+      : y < -half ? wTip * Math.sqrt(Math.max(0, 1 - ((-half - y) / 0.08) ** 2)) : waist + y * y / sc;
+    const ys = []; for (let y = -half - 0.08; y < half + 0.16 + 1e-6; y += 0.01) ys.push(y);
+    const shape = new THREE.Shape();
+    ys.forEach((y, i) => { const x = c + width(y) / 2; if (i) shape.lineTo(x, -y); else shape.moveTo(x, -y); });
+    ys.slice().reverse().forEach(y => shape.lineTo(c - width(y) / 2, -y));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.016, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);                     // длина — вдоль z, толщина — вверх
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {          // загиб носа и пятки
+      const z = pos.getZ(i);
+      const lift = z > 0.6 ? 0.075 * ((z - 0.6) / 0.31) ** 2 : z < -0.7 ? 0.03 * ((-0.7 - z) / 0.13) ** 2 : 0;
+      pos.setY(i, pos.getY(i) + lift);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+
   // Снаряжение в 3D для текущего режима: лыжа (с ботинком и креплением) или доска (с двумя креплениями).
   function build3dGear() {
     if (!V3.ok) return;
@@ -1066,12 +1098,12 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     V3.gear.forEach(g => V3.rig.remove(g));
     V3.gear = [];
     if (state.mode === 'ski') {
+      V3.gearSc = state.ski.sc;
+      const skiGeo = skiGeometry(state.ski.sc);
       for (let i = 0; i < 2; i++) {
         // начало координат лыжи — опорный кант; лыжа вдоль z, нос к зрителю
         const g = new THREE.Group();
-        box(0.07, 0.014, 1.5, mat.white, 0.035, 0.009, -0.05, g);                 // верх лыжи
-        box(0.07, 0.004, 1.5, mat.black, 0.035, 0.002, -0.05, g);                 // скользяк и канты
-        const tip = box(0.07, 0.012, 0.2, mat.white, 0.035, 0.032, 0.78, g); tip.rotation.x = -0.35;
+        g.add(new THREE.Mesh(skiGeo, mat.ski));                                    // карвинговая лыжа
         box(0.058, 0.026, 0.52, mat.dark, 0.035, 0.029, -0.03, g);                // площадка
         box(0.07, 0.05, 0.09, mat.dark, 0.035, 0.065, 0.2, g);                    // передняя головка
         box(0.07, 0.06, 0.11, mat.dark, 0.035, 0.07, -0.26, g);                   // пятка
@@ -1590,6 +1622,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     $('scMax').textContent = m.scMax + ' м';
     $('scHint').textContent = m.hint;
     document.querySelectorAll('[data-ski]').forEach(e => { e.textContent = e.dataset[mode]; });
+    document.body.dataset.mode = mode;
     const ski = mode === 'ski';
     ['planR', 'doneR'].forEach(id => { $(id).style.display = ski ? '' : 'none'; });
     ['doneL', 'doneR'].forEach(id => $(id).classList.toggle('thin', ski));
