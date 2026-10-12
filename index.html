@@ -31,6 +31,7 @@ img{max-width:100%}
   --jacket:#F26A1B;
   --steel:#1F5566;
   --helmet:#2B2F33;
+  --pole:#4DFF0F;
   --font-display:"Aeroport","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-body:"Aeroport","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -39,7 +40,7 @@ img{max-width:100%}
 }
 :root.light{
   --bg:#F2F3F5; --panel:#FFFFFF; --line:#D8DCE2; --grid:#E9ECF0; --fg:#000000; --muted:#5A616C;
-  --blue:#0068E6; --blue-soft:rgba(0,104,230,.10); --green:#1F8200; --part:#C9CED6; color-scheme:light;
+  --blue:#0068E6; --blue-soft:rgba(0,104,230,.10); --green:#1F8200; --part:#C9CED6; --pole:#2BC400; color-scheme:light;
 }
 
 *{box-sizing:border-box}
@@ -212,7 +213,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .edge-dot{fill:var(--green)}
 .limb-o{fill:none;stroke:var(--fg);stroke-linecap:round;stroke-linejoin:round}
 .limb{fill:none;stroke:var(--steel);stroke-linecap:round;stroke-linejoin:round}
-.pole2d{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round}
+.pole2d{fill:none;stroke:var(--pole);stroke-width:2.5;stroke-linecap:round}
 .torso{fill:var(--jacket);stroke:var(--fg);stroke-width:1.5;stroke-linejoin:round}
 .head{fill:var(--helmet);stroke:var(--fg);stroke-width:1.5}
 .eq *{vector-effect:non-scaling-stroke}
@@ -859,7 +860,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       limb([p.top, p.kneeO, p.hipO], 8);
       quad([p.hipO, p.hipI, p.shL, p.shR]);
       limb([p.shL, p.armL], 5); limb([p.shR, p.armR], 5);
-      [[p.armL, -1], [p.armR, 1]].forEach(([q, k]) => mk('path', { d: 'M' + P(q) + 'L' + P({ x: q.x + k * 16, y: Math.min(-2, q.y + 96) }), class: 'pole2d' }, g));
+      mk('path', { d: 'M' + P(p.armL) + 'L' + P({ x: p.armL.x - 16, y: Math.min(-2, p.armL.y + 96) }), class: 'pole2d' }, g);
+      // внешняя палка — параллельно внешней ноге, до снега
+      const lx = p.top.x - p.hipO.x, ly = p.top.y - p.hipO.y, ln = Math.hypot(lx, ly) || 1, pl = Math.min(1.2 * KPX, (-2 - p.armR.y) / Math.max(0.05, ly / ln));
+      mk('path', { d: 'M' + P(p.armR) + 'L' + P({ x: p.armR.x + lx / ln * pl, y: p.armR.y + ly / ln * pl }), class: 'pole2d' }, g);
     } else {
       limb([p.top, p.knee, p.hip], 9);
       quad([add(p.hip, p.fwd, mpx(0.09)), add(p.hip, p.fwd, -mpx(0.11)), add(p.sh, p.fwd, -mpx(0.11)), add(p.sh, p.fwd, mpx(0.09))]);
@@ -885,7 +889,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     set($('fCom'), { cx: cm.x, cy: cm.y });
     $('fLamL').textContent = 'λ ' + Math.round(c.lean) + '°';
     set($('fLamL'), { x: rf.x + 6, y: Math.max(14, cm.y - ext - 4) });
-    if (ANIM.on) { ANIM.table = animTable(c); ANIM.s = Math.min(ANIM.s, ANIM.table[ANIM.table.length - 1].s * 0.999); }
+    if (ANIM.on) ANIM.table = animTable(c);
     else update3d(p, c);
   }
 
@@ -895,7 +899,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   // Нет библиотеки или WebGL — остаётся плоский рисунок.
   const V3 = { ok: false, yaw: 30 * RAD, pitch: 14 * RAD, front: false };
   const TRAIL_N = 500;
-  const ANIM = { on: false, s: 0, side: 1, base: { x: 0, z: 0 }, hist: [[], []], table: null };
+  // g — пройденный путь, м: по нему едут и 3D-фигура, и лыжник на виде сверху
+  const ANIM = { on: false, g: 0, hist: [[], []], table: null };
 
   (function init3d() {
     try {
@@ -922,7 +927,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       const mat = {
         jacket: M(0xF26A1B, 0.55), steel: M(0x6E7B85, 0.5, 0.2), dark: M(0x26292E, 0.5),
         white: M(0xEDF0F3, 0.35), black: M(0x17191C, 0.45), lens: M(0xFF8A2A, 0.12, 0.75), strap: M(0x4A5058, 0.6),
-        pants: M(0x1F5566, 0.62), skin: M(0xE2B59A, 0.7), helmet: M(0xF1F3F5, 0.28, 0.05), glove: M(0x1B1D20, 0.7), pole: M(0xB8C0C8, 0.3, 0.7)
+        pants: M(0x1F5566, 0.62), skin: M(0xE2B59A, 0.7), helmet: M(0xF1F3F5, 0.28, 0.05), glove: M(0x1B1D20, 0.7), pole: new THREE.MeshStandardMaterial({ color: 0x4dff0f, emissive: 0x2a8a00, emissiveIntensity: 0.7, roughness: 0.35 })
       };
       const snowMat = M(0xe6eaf0, 0.95);
       const snow = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), snowMat);
@@ -1148,11 +1153,11 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     parts.poles.forEach((pl, i) => {
       [pl.shaft, pl.grip, pl.basket].forEach(o => { o.visible = ski; });
       if (!ski) return;
-      const hnd = hands[i], dy = 0.02 - hnd.y;
+      const hnd = hands[i];
       const v = i === 1
-        ? new THREE.Vector3(0, dy, -Math.sqrt(Math.max(0.04, 1.44 - dy * dy)))   // внешняя — параллельно лыже
-        : new THREE.Vector3(-0.16, dy, -0.85);                                     // внутренняя — назад и чуть внутрь
-      const L = Math.min(1.2, v.length()); v.normalize();
+        ? new THREE.Vector3().subVectors(legs[0][0], legs[0][2]).normalize()      // внешняя — параллельно внешней ноге
+        : new THREE.Vector3(-0.16, 0.02 - hnd.y, -0.85).normalize();             // внутренняя — назад и чуть внутрь
+      const L = v.y < -0.05 ? Math.min(1.2, (hnd.y - 0.02) / -v.y) : 1.2;       // остриё у снега, палка не длиннее 1,2 м
       const tipP = hnd.clone().addScaledVector(v, L), top = hnd.clone().addScaledVector(v, -0.07);
       setSeg(pl.shaft, tipP, top, 0.009);
       setSeg(pl.grip, hnd.clone().addScaledVector(v, 0.07), top.clone().addScaledVector(v, -0.02), 0.017);
@@ -1212,7 +1217,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     $('fRun').setAttribute('aria-pressed', on);
     V3.stage.classList.toggle('anim', on);
     if (on) {
-      Object.assign(ANIM, { s: 0, side: 1, base: { x: 0, z: 0 }, hist: [[], []], table: cur ? animTable(cur) : null });
+      Object.assign(ANIM, { g: 0, hist: [[], []], table: cur ? animTable(cur) : null });
       if (V3.target) V3.target.x = 0;
     } else {
       V3.trails.forEach(l => l.geometry.setDrawRange(0, 0));
@@ -1226,24 +1231,26 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     if (!V3.ok || !ANIM.on || !cur || !ANIM.table) return;
     const T = ANIM.table, total = T[T.length - 1].s;
     if (!(total > 0)) return;
-    ANIM.s += Math.max(cur.v, 4) * dt;                 // не медленнее 4 м/с, чтобы на малых углах не замирать
-    while (ANIM.s >= total) {
-      ANIM.s -= total;
-      const e = T[T.length - 1];
-      ANIM.base.x += ANIM.side * e.x; ANIM.base.z += e.z; ANIM.side = -ANIM.side;
-    }
+    ANIM.g += Math.max(cur.v, 4) * dt;                 // не медленнее 4 м/с, чтобы на малых углах не замирать
+    const n = Math.floor(ANIM.g / total), sIn = ANIM.g - n * total, side = n % 2 ? -1 : 1, e = T[T.length - 1];
     let lo = 0, hi = T.length - 1;
-    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T[m].s <= ANIM.s) lo = m; else hi = m; }
-    const a = T[lo], b = T[hi], t = b.s > a.s ? (ANIM.s - a.s) / (b.s - a.s) : 0, L = (u, v) => u + (v - u) * t;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T[m].s <= sIn) lo = m; else hi = m; }
+    const a = T[lo], b = T[hi], t = b.s > a.s ? (sIn - a.s) / (b.s - a.s) : 0, L = (u, v) => u + (v - u) * t;
     const th = L(a.th, b.th), psi = L(a.psi, b.psi);
-    const wx = ANIM.base.x + ANIM.side * L(a.x, b.x), wz = ANIM.base.z + L(a.z, b.z);
+    const wx = (n % 2 ? e.x : 0) + side * L(a.x, b.x), wz = n * e.z + L(a.z, b.z);
+
+    // вид сверху: тот же путь; на змейке поворотов меньше, чем в спуске, — повторяем по чётному числу поворотов
+    if (track && S > 0) {
+      const pair = 2 * total, fit = Math.floor(track.total / S / pair);
+      sPos = ANIM.g % (pair * Math.max(1, fit));
+    }
 
     // поза при текущем угле: та же ангуляция, что на ползунке, не больше достижимой
     const st = state[state.mode];
     const lamMinT = Math.max(0, Math.min(th, lamOf(pose(th, bendHi(th)))));
     const lam = Math.min(th, Math.max(lamMinT, th - st.ang * RAD));
     const p = solvePose(th, lam);
-    update3d(p, cur, { th, heading: ANIM.side * psi, side: ANIM.side });
+    update3d(p, cur, { th, heading: side * psi, side });
 
     // след кантов: точки опоры под ботинками в координатах склона
     V3.rig.updateMatrixWorld(true);
@@ -1585,7 +1592,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       render();
     }
     // едем по следу с расчётной скоростью v, м/с
-    if (!reduce.matches && cur) sPos += cur.v * dt;
+    if (!reduce.matches && cur && !ANIM.on) sPos += cur.v * dt;
     animStep(dt);
     drawMover();
     requestAnimationFrame(frame);
