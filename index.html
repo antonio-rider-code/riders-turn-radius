@@ -158,6 +158,13 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .tgr{fill:var(--green)}
 .groove{fill:var(--blue-soft);stroke:none}
 .chord{stroke:var(--muted);stroke-width:1;stroke-dasharray:1 4}
+.bootside *{vector-effect:non-scaling-stroke}
+.bootside .boot{stroke-width:1.4}
+.bootside .detail,.bootside .ladder,.bootside .rivet,.bootside .binding,.bootside .part{stroke-width:.9}
+.lever{fill:var(--fg)}
+.ladder{fill:none;stroke:var(--fg)}
+.rivet{fill:var(--panel);stroke:var(--fg)}
+.binding{fill:var(--part);stroke:var(--fg);stroke-linejoin:round}
 .load{fill:none;stroke:var(--fg);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .dimline{stroke:var(--fg);stroke-width:1}
 .curve-geo{fill:none;stroke:var(--blue);stroke-width:1;stroke-dasharray:3 3;stroke-opacity:.6}
@@ -348,31 +355,31 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
     <section class="panel flex" aria-labelledby="hX">
       <div class="phead"><h2 id="hX">Прогиб <span data-ski="лыжи" data-board="доски">лыжи</span></h2><div class="legend"><span><i class="sw dash"></i>по геометрии</span><span><i class="sw"></i>с врезанием</span></div></div>
-      <svg class="fig" viewBox="0 0 360 270" role="img" aria-label="Прогиб: вид сбоку на врезание канта и вид сверху на дугу канта">
+      <svg class="fig" viewBox="0 0 360 342" role="img" aria-label="Прогиб: вид сбоку на врезание канта и вид сверху на дугу канта">
         <text id="xSideL" class="t" x="8" y="14">СБОКУ</text>
         <g id="xHatch"></g>
         <path id="xGroove" class="groove"/>
-        <line class="snowline" x1="14" y1="58" x2="346" y2="58"/>
+        <line class="snowline" x1="14" y1="150" x2="346" y2="150"/>
         <g id="xGear"></g>
         <g id="xDim"></g>
-        <text id="xTopL" class="t" x="8" y="146">СВЕРХУ</text>
-        <line id="xChord" class="chord" x1="40" y1="164" x2="310" y2="164"/>
+        <text id="xTopL" class="t" x="8" y="214">СВЕРХУ</text>
+        <line id="xChord" class="chord" x1="40" y1="232" x2="310" y2="232"/>
         <path id="xGeo" class="c-sc"/>
         <path id="xFlex" class="curve"/>
-        <text id="xGeoL" class="t halo" x="14" y="246"></text>
-        <text id="xFlexL" class="t bl halo" x="14" y="263"></text>
+        <text id="xGeoL" class="t halo" x="14" y="316"></text>
+        <text id="xFlexL" class="t bl halo" x="14" y="333"></text>
       </svg>
       <div class="ctrl">
         <div class="chead"><label for="flexIn">Врезание канта под ботинком</label><output id="flexOut" for="flexIn">0 мм</output></div>
-        <input type="range" id="flexIn" min="-10" max="40" step="1" value="0">
-        <div class="ends"><span>−10 мм</span><span>40 мм</span></div>
+        <input type="range" id="flexIn" min="-10" max="20" step="1" value="0">
+        <div class="ends"><span>−10 мм</span><span>20 мм</span></div>
       </div>
       <dl class="stats">
         <div><dt>Глубина выреза d</dt><dd id="xD">17,5 мм</dd></div>
         <div><dt>Прогиб δ</dt><dd id="xDelta">17,5 мм</dd></div>
         <div><dt>Радиус</dt><dd id="xR">10,6 м</dd></div>
       </dl>
-      <p class="caption" data-ski="Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение." data-board="Чтобы поставленная на кант доска легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: доска прогнута сильнее, дуга круче. Жёсткую доску на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,25 м; p задаётся вручную — это ориентир, не измерение.">Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение.</p>
+      <p class="caption" data-ski="Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Врезание ограничено 20 мм: в более мягком снегу лыжа плывёт и уже не гнётся эффективно. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение." data-board="Чтобы поставленная на кант доска легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: доска прогнута сильнее, дуга круче. Жёсткую доску на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Врезание ограничено 20 мм: в более мягком снегу доска плывёт и уже не гнётся эффективно. Длина канта условно 1,25 м; p задаётся вручную — это ориентир, не измерение.">Чтобы поставленная на кант лыжа легла на снег всей длиной канта, её прогибают на δ = d · tg θ — это уже заложено в R = R выреза × cos θ. Мягкий снег и сильная нагрузка дают врезание p &gt; 0: лыжа прогнута сильнее, дуга круче. Жёсткую лыжу на льду не догнуть, p &lt; 0: кант держит носком и пяткой, дуга шире. Врезание ограничено 20 мм: в более мягком снегу лыжа плывёт и уже не гнётся эффективно. Длина канта условно 1,5 м; p задаётся вручную — это ориентир, не измерение.</p>
     </section>
 
 
@@ -806,13 +813,38 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   }
 
   // Схема: контакт канта от хвоста FX.a до носа FX.b, линия снега FX.sy, по высоте FX.vs px на мм
-  const FX = { a: 40, b: 310, sy: 58, vs: 1.6, cy: 164, hmax: 62 };
+  const FX = { a: 40, b: 310, sy: 150, vs: 1.6, cy: 232, hmax: 62 };
   const mmTxt = v => (!isFinite(v) || Math.abs(v) > 9999) ? '∞' : f1(v) + ' мм';
 
   (function buildHatch() {
     const g = $('xHatch');
     for (let x = 22; x <= 346; x += 10) mk('line', { x1: x, y1: FX.sy + 1, x2: x - 7, y2: FX.sy + 9, class: 'hatch' }, g);
   })();
+
+  // Горнолыжный ботинок сбоку в мм: начало — пятка на подошве, x к носку, y вверх отрицательный.
+  function drawAlpineBoot(g) {
+    mk('rect', { x: -64, y: 0, width: 422, height: 14, rx: 3, class: 'part' }, g);                    // площадка
+    mk('path', { d: 'M76 -329Q132 -357 199 -320Z', class: 'part' }, g);                                 // внутренник
+    // скорлупа: подошва с выступами DIN, носок, подъём, манжета с наклоном вперёд, спойлер, пятка
+    mk('path', { d: 'M8 0L298 0L312 -4L312 -20L296 -23C290 -52 268 -74 236 -86C210 -96 190 -120 180 -152L212 -302Q214 -318 198 -320L74 -330Q58 -332 56 -316L36 -196C30 -160 14 -124 12 -76L12 -24L0 -22L0 -4Z', class: 'boot' }, g);
+    mk('path', { d: 'M8 0L298 0L300 -14L10 -14Z', class: 'part' }, g);                                  // подошва
+    mk('path', { d: 'M36 -194C60 -176 100 -168 140 -166C160 -165 172 -160 182 -152', class: 'detail' }, g); // край манжеты
+    mk('path', { d: 'M170 -140C168 -190 178 -250 190 -318', class: 'detail' }, g);                       // язык
+    mk('path', { d: 'M58 -312L210 -298L208 -284L60 -298Z', class: 'part' }, g);                          // ремень
+    mk('circle', { cx: 66, cy: -174, r: 8, class: 'rivet' }, g);                                         // шарнир манжеты
+    // клипсы: лесенка, рычаг на шарнире
+    [[184, -74, -22], [128, -118, -30], [120, -212, -8], [128, -258, -6]].forEach(([x, y, a]) => {
+      const b = mk('g', { transform: `translate(${x} ${y}) rotate(${a})` }, g);
+      mk('rect', { x: 46, y: -5, width: 24, height: 10, rx: 2, class: 'ladder' }, b);
+      mk('path', { d: 'M54 -5V5M62 -5V5', class: 'detail' }, b);
+      mk('rect', { x: -6, y: -7, width: 54, height: 14, rx: 7, class: 'lever' }, b);
+      mk('circle', { cx: 0, cy: 0, r: 3.5, class: 'rivet' }, b);
+    });
+    // крепление: передняя головка держит носок, пятка с рычагом держит пятку
+    mk('path', { d: 'M314 0H356V-16Q354 -42 332 -48H318Q304 -46 304 -36V-24H314Z', class: 'binding' }, g);
+    mk('path', { d: 'M-62 0H-2V-22H10V-32Q8 -52 -14 -58H-44Q-60 -56 -62 -42Z', class: 'binding' }, g);
+    mk('path', { d: 'M-40 -58L-66 -70', class: 'detail' }, g);
+  }
 
   function renderFlex(c) {
     const ski = state.mode === 'ski', th = c.th, fx = c.fx;
@@ -842,10 +874,11 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       mk('path', { d: `M${x - 4} ${y - 8}L${x} ${y - 2}L${x + 4} ${y - 8}`, class: 'load' }, g);
     };
     if (ski) {
-      const yc = yAt(cx) - 6;
-      mk('rect', { x: cx - 28, y: yc - 6, width: 56, height: 6, rx: 1, class: 'part' }, g);
-      mk('path', { d: 'M-25 0H27L26 -14Q22 -21 12 -23L10 -48H-14L-17 -24Q-25 -17 -25 0Z', transform: `translate(${cx} ${yc - 6})`, class: 'boot' }, g);
-      arrow(cx - 2, yc - 56);
+      // ботинок в мм (носок справа), крупнее масштаба лыжи, чтобы читались клипсы
+      const yc = yAt(cx) - 6, s = 0.26;
+      const bg = mk('g', { transform: `translate(${(cx - 155 * s).toFixed(1)} ${(yc - 14 * s).toFixed(1)}) scale(${s})`, class: 'bootside' }, g);
+      drawAlpineBoot(bg);
+      arrow(cx - 6, yc - 14 * s - 356 * s - 2);
     } else {
       [-58, 58].forEach(dx => {
         const x = cx + dx, yc = yAt(x) - 6;
@@ -862,7 +895,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       mk('line', { x1: cx, y1: ye, x2: dx + 4, y2: ye, class: 'guide' }, dg);
       mk('line', { x1: dx, y1: FX.sy, x2: dx, y2: ye, class: 'dimline' }, dg);
     }
-    mk('text', { x: dx + 8, y: pmm > 0.3 ? Math.min(ye + 15, 134) : FX.sy + 22, class: 't fg halo' }, dg).textContent =
+    mk('text', { x: dx + 8, y: pmm > 0.3 ? Math.min(ye + 15, 202) : FX.sy + 22, class: 't fg halo' }, dg).textContent =
       'p ' + (pmm > 0.3 ? '' : pmm < -0.3 ? '−' : '') + f1(Math.abs(pmm)).replace(',0', '') + ' мм' + (pmm < -0.3 ? ' · зазор' : '');
 
     // сверху: дуга канта по геометрии и с прогибом (глубина дуги в увеличенном масштабе)
