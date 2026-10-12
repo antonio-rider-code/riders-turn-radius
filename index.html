@@ -99,7 +99,12 @@ h1 span{color:var(--muted)}
 .fig{display:block;width:100%;height:auto}
 
 /* readout */
-.big{display:flex;align-items:baseline;gap:10px;font:500 clamp(56px,7vw,84px)/.95 var(--font-mono);letter-spacing:-.04em;color:var(--blue);font-variant-numeric:tabular-nums}
+.bigpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bigpair>div{min-width:0;display:flex;flex-direction:column;gap:6px}
+.bigpair>div+div{padding-left:12px;border-left:1px solid var(--line)}
+.blabel{margin:0;font:500 11px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stats.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.big{display:flex;align-items:baseline;gap:8px;font:500 clamp(38px,3.8vw,54px)/.95 var(--font-mono);white-space:nowrap;letter-spacing:-.04em;color:var(--blue);font-variant-numeric:tabular-nums}
 .big .unit{font-size:.34em;letter-spacing:0;color:var(--muted)}
 .formula{margin:0;font:400 13px/1.4 var(--font-mono);color:var(--muted)}
 .formula b{font-weight:500;color:var(--fg)}
@@ -231,7 +236,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 .front.is3d .fstage>svg{display:none}
 .front.is3d .flabel{display:block;position:absolute;transform:translate(-50%,-50%);font:500 12px var(--font-mono);color:var(--fg);pointer-events:none;white-space:nowrap;text-shadow:0 0 3px var(--panel),0 0 3px var(--panel),0 0 3px var(--panel)}
 .front.is3d #fThL3{color:var(--green)}
-.front.is3d .fctl{display:flex;position:absolute;right:4px;top:4px}
+.front.is3d .fctl{display:flex;gap:4px;position:absolute;right:4px;top:4px}
+.flive{display:none}
+.front.is3d .fstage.anim .flive{display:block;position:absolute;left:6px;top:10px;font:500 12px var(--font-mono);color:var(--fg);pointer-events:none;text-shadow:0 0 3px var(--panel),0 0 3px var(--panel)}
+.front.is3d .fstage.anim .flabel{display:none}
 .fctl button{font:600 12px var(--font-body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer}
 .fctl button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .front.is3d .p2d,.front:not(.is3d) .p3d{display:none}
@@ -307,16 +315,18 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
     <div class="side">
       <section class="panel readout" aria-labelledby="hR">
-        <div class="phead"><h2 id="hR">Радиус в вершине дуги</h2><span>R</span></div>
-        <div class="big"><span id="rOut">10,6</span><span class="unit">м</span></div>
+        <div class="phead"><h2 id="hR">Радиус поворота</h2><span>R</span></div>
+        <div class="bigpair">
+          <div><p class="blabel">В вершине дуги</p><div class="big"><span id="rOut">10,6</span><span class="unit">м</span></div></div>
+          <div><p class="blabel">Средний за поворот</p><div class="big"><span id="rAvg">12,8</span><span class="unit">м</span></div></div>
+        </div>
         <p class="formula"><b id="fSc">15,0</b> м × cos <b class="g" id="fTh">45</b>° = <b class="bl" id="fR">10,6</b> м<span id="fFlex" hidden> · <span id="fFlexW">с врезанием</span> <b id="fFlexP">0</b> мм — <b class="bl" id="fFlexR">10,6</b> м</span></p>
         <dl class="stats">
           <div><dt>Короче выреза</dt><dd id="sShort">на 29 %</dd></div>
           <div><dt>Перегрузка*</dt><dd id="sG">1,41 g</dd></div>
           <div><dt>Скорость равновесия*</dt><dd id="sV">≈ 37 км/ч</dd></div>
         </dl>
-        <dl class="stats">
-          <div><dt>Средний радиус поворота</dt><dd id="sAvg">12,8 м</dd></div>
+        <dl class="stats two">
           <div><dt>Поворот вдоль склона</dt><dd id="sAlong">22,6 м</dd></div>
           <div><dt>Ширина змейки</dt><dd id="sWidth">15,6 м</dd></div>
         </dl>
@@ -387,7 +397,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       </svg>
       <canvas id="fCanvas" role="img" aria-label="Объёмная модель: потяните, чтобы повернуть"></canvas>
       <div class="flabel" id="fThL3"></div><div class="flabel" id="fLamL3"></div>
-      <div class="fctl"><button type="button" id="fView">Спереди</button></div>
+      <div class="fctl"><button type="button" id="fRun" aria-pressed="false">▶ Спуск</button><button type="button" id="fView">Спереди</button></div>
+      <div class="flive" id="fLive"></div>
       </div>
       <div class="parts p3d">
         <span><i class="pw edge-on"></i>θ</span>
@@ -874,7 +885,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     set($('fCom'), { cx: cm.x, cy: cm.y });
     $('fLamL').textContent = 'λ ' + Math.round(c.lean) + '°';
     set($('fLamL'), { x: rf.x + 6, y: Math.max(14, cm.y - ext - 4) });
-    update3d(p, c);
+    if (ANIM.on) { ANIM.table = animTable(c); ANIM.s = Math.min(ANIM.s, ANIM.table[ANIM.table.length - 1].s * 0.999); }
+    else update3d(p, c);
   }
 
   /* ---------- вид спереди в 3D ---------- */
@@ -882,6 +894,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   // Координаты сцены в метрах: x — вправо, y — вверх, z — к зрителю (лыжник едет на нас).
   // Нет библиотеки или WebGL — остаётся плоский рисунок.
   const V3 = { ok: false, yaw: 30 * RAD, pitch: 14 * RAD, front: false };
+  const TRAIL_N = 500;
+  const ANIM = { on: false, s: 0, side: 1, base: { x: 0, z: 0 }, hist: [[], []], table: null };
 
   (function init3d() {
     try {
@@ -933,7 +947,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       const torsoG = new THREE.LatheGeometry([[0, 0], [0.8, 0], [0.78, 0.1], [0.72, 0.26], [0.82, 0.48], [0.96, 0.7], [1, 0.84], [0.88, 0.95], [0.5, 1], [0, 1]]
         .map(([r, y]) => new THREE.Vector2(r, y)), 32);
       torsoG.translate(0, -0.5, 0);
-      const body = new THREE.Group(); scene.add(body);
+      const rig = new THREE.Group(); scene.add(rig);                 // райдер целиком: курс и отражение при спуске
+      const body = new THREE.Group(); rig.add(body);
       const mesh = (g, m) => { const o = new THREE.Mesh(g, m); o.castShadow = true; body.add(o); return o; };
       const two = (g, m) => [mesh(g, m), mesh(g, m)];
       const parts = {
@@ -975,7 +990,15 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       const com = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true }));
       com.renderOrder = 11; scene.add(com);
 
-      Object.assign(V3, { ok: true, renderer, scene, camera, stage, canvas, mat, snowMat, grid, parts, head, goggles, ann, com, box, gear: [] });
+      // след кантов на снегу при спуске
+      const trailMat = new THREE.LineBasicMaterial({ color: 0x0075ff, transparent: true, opacity: 0.85 });
+      const trails = [0, 1].map(() => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 3), 3));
+        g.setDrawRange(0, 0);
+        const l = new THREE.Line(g, trailMat); l.position.y = 0.004; l.frustumCulled = false; scene.add(l); return l;
+      });
+      Object.assign(V3, { ok: true, renderer, scene, camera, stage, canvas, mat, snowMat, grid, parts, head, goggles, ann, com, box, rig, trails, gear: [] });
       $('front').classList.add('is3d');
 
       // вращение перетаскиванием; на телефоне — только по горизонтали, чтобы страница прокручивалась
@@ -991,6 +1014,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       });
       const end = () => { drag = null; canvas.style.cursor = ''; };
       canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+      $('fRun').addEventListener('click', () => setRun(!ANIM.on));
       $('fView').addEventListener('click', () => {
         V3.front = !V3.front;
         if (V3.front) { V3.yaw = 0; V3.pitch = 0; } else { V3.yaw = 30 * RAD; V3.pitch = 14 * RAD; }
@@ -1013,7 +1037,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   function build3dGear() {
     if (!V3.ok) return;
     const { scene, mat, box } = V3;
-    V3.gear.forEach(g => scene.remove(g));
+    V3.gear.forEach(g => V3.rig.remove(g));
     V3.gear = [];
     if (state.mode === 'ski') {
       for (let i = 0; i < 2; i++) {
@@ -1050,7 +1074,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
       });
       V3.gear.push(g);
     }
-    V3.gear.forEach(g => { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); scene.add(g); });
+    V3.gear.forEach(g => { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); V3.rig.add(g); });
   }
 
   const UP3 = typeof THREE !== 'undefined' ? new THREE.Vector3(0, 1, 0) : null;
@@ -1062,10 +1086,14 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   }
   const setBall = (m, p, r) => { m.position.copy(p); m.scale.setScalar(r); };
 
-  function update3d(p, c) {
+  function update3d(p, c, A) {
     if (!V3.ok) return;
     V3.last = { p, c };
-    const ski = p.ski, th = c.th, { parts, head, goggles } = V3;
+    const ski = p.ski, th = A ? A.th : c.th, { parts, head, goggles } = V3;
+    // при спуске райдер развёрнут по курсу, правый поворот — зеркальная копия левого
+    if (A) { V3.rig.rotation.set(0, A.heading, 0); V3.rig.scale.set(A.side, 1, 1); }
+    else { V3.rig.rotation.set(0, 0, 0); V3.rig.scale.set(1, 1, 1); }
+    [V3.ann.arc, V3.ann.base, V3.ann.lam, V3.ann.vert, V3.com].forEach(o => { o.visible = !A; });
     const P = (q, z = 0) => new THREE.Vector3(q.x / KPX, -q.y / KPX, z);
     const mid = (a, b) => a.clone().add(b).multiplyScalar(0.5);
 
@@ -1120,8 +1148,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     parts.poles.forEach((pl, i) => {
       [pl.shaft, pl.grip, pl.basket].forEach(o => { o.visible = ski; });
       if (!ski) return;
-      const hnd = hands[i], out = i === 0 ? -1 : 1;
-      const v = new THREE.Vector3(hnd.x + out * 0.16, 0.02, hnd.z - 0.85).sub(hnd);
+      const hnd = hands[i], dy = 0.02 - hnd.y;
+      const v = i === 1
+        ? new THREE.Vector3(0, dy, -Math.sqrt(Math.max(0.04, 1.44 - dy * dy)))   // внешняя — параллельно лыже
+        : new THREE.Vector3(-0.16, dy, -0.85);                                     // внутренняя — назад и чуть внутрь
       const L = Math.min(1.2, v.length()); v.normalize();
       const tipP = hnd.clone().addScaledVector(v, L), top = hnd.clone().addScaledVector(v, -0.07);
       setSeg(pl.shaft, tipP, top, 0.009);
@@ -1133,6 +1163,8 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     head.position.copy(headC);
     head.rotation.set(0, ski ? 0 : Math.PI / 2, 0);
     head.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), tilt);
+
+    if (A) return;   // при спуске разметку не рисуем, кадр строит animStep
 
     // разметка
     const ZA = ski ? 0.95 : 0.8, r = 0.28;
@@ -1159,6 +1191,81 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     draw3d();
   }
 
+  // Один поворот для спуска, в метрах: курс от +PHI до −PHI, угол закантовки — по профилю ползунка
+  // «Закантовка», радиус — с учётом врезания канта. x — поперёк склона, z — вниз по склону (к зрителю).
+  function animTable(c) {
+    const q = edgeQ(c.st.edge), n = 240, dpsi = 2 * PHI / n, T = [{ s: 0, psi: PHI, th: 0, x: 0, z: 0 }];
+    let s = 0, x = 0, z = 0;
+    for (let i = 0; i < n; i++) {
+      const pm = PHI - (i + 0.5) * dpsi, ds = flexAt(c.st.sc, c.th * edgeShape(Math.abs(pm) / PHI, q), c.st.flex).R * dpsi;
+      s += ds; x += Math.sin(pm) * ds; z += Math.cos(pm) * ds;
+      const pe = PHI - (i + 1) * dpsi;
+      T.push({ s, psi: pe, th: c.th * edgeShape(Math.abs(pe) / PHI, q), x, z });
+    }
+    return T;
+  }
+
+  function setRun(on) {
+    if (!V3.ok) return;
+    ANIM.on = on;
+    $('fRun').textContent = on ? '❚❚ Стоп' : '▶ Спуск';
+    $('fRun').setAttribute('aria-pressed', on);
+    V3.stage.classList.toggle('anim', on);
+    if (on) {
+      Object.assign(ANIM, { s: 0, side: 1, base: { x: 0, z: 0 }, hist: [[], []], table: cur ? animTable(cur) : null });
+      if (V3.target) V3.target.x = 0;
+    } else {
+      V3.trails.forEach(l => l.geometry.setDrawRange(0, 0));
+      V3.grid.position.set(0, 0.001, 0);
+      render();
+    }
+  }
+
+  // Кадр спуска: продвигаемся по повороту со скоростью равновесия, на смене кантов — следующий поворот в другую сторону.
+  function animStep(dt) {
+    if (!V3.ok || !ANIM.on || !cur || !ANIM.table) return;
+    const T = ANIM.table, total = T[T.length - 1].s;
+    if (!(total > 0)) return;
+    ANIM.s += Math.max(cur.v, 4) * dt;                 // не медленнее 4 м/с, чтобы на малых углах не замирать
+    while (ANIM.s >= total) {
+      ANIM.s -= total;
+      const e = T[T.length - 1];
+      ANIM.base.x += ANIM.side * e.x; ANIM.base.z += e.z; ANIM.side = -ANIM.side;
+    }
+    let lo = 0, hi = T.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (T[m].s <= ANIM.s) lo = m; else hi = m; }
+    const a = T[lo], b = T[hi], t = b.s > a.s ? (ANIM.s - a.s) / (b.s - a.s) : 0, L = (u, v) => u + (v - u) * t;
+    const th = L(a.th, b.th), psi = L(a.psi, b.psi);
+    const wx = ANIM.base.x + ANIM.side * L(a.x, b.x), wz = ANIM.base.z + L(a.z, b.z);
+
+    // поза при текущем угле: та же ангуляция, что на ползунке, не больше достижимой
+    const st = state[state.mode];
+    const lamMinT = Math.max(0, Math.min(th, lamOf(pose(th, bendHi(th)))));
+    const lam = Math.min(th, Math.max(lamMinT, th - st.ang * RAD));
+    const p = solvePose(th, lam);
+    update3d(p, cur, { th, heading: ANIM.side * psi, side: ANIM.side });
+
+    // след кантов: точки опоры под ботинками в координатах склона
+    V3.rig.updateMatrixWorld(true);
+    const edges = p.ski ? [0, -p.D / KPX] : [0];
+    edges.forEach((ex, k) => {
+      const v = new THREE.Vector3(ex, 0, 0).applyMatrix4(V3.rig.matrixWorld);
+      const hst = ANIM.hist[k]; hst.push([v.x + wx, v.z + wz]); if (hst.length > TRAIL_N) hst.shift();
+      const arr = V3.trails[k].geometry.attributes.position.array;
+      hst.forEach(([hx, hz], j) => { arr[j * 3] = hx - wx; arr[j * 3 + 1] = 0; arr[j * 3 + 2] = hz - wz; });
+      V3.trails[k].geometry.attributes.position.needsUpdate = true;
+      V3.trails[k].geometry.setDrawRange(0, hst.length);
+    });
+    V3.trails[1].visible = p.ski;
+    // камера плавно держит в кадре центр масс (он уходит в сторону наклона)
+    const cw = new THREE.Vector3(p.com.x / KPX, -p.com.y / KPX, 0).applyMatrix4(V3.rig.matrixWorld);
+    const k = Math.min(1, dt * 3);
+    V3.target.x += (cw.x * 0.6 - V3.target.x) * k; V3.target.z += (cw.z * 0.6 - V3.target.z) * k;
+    V3.grid.position.set(-(wx % 1), 0.001, -(wz % 1));   // склон едет навстречу
+    $('fLive').textContent = `θ ${Math.round(th / RAD)}° · λ ${Math.round(lam / RAD)}° · R ${f1(flexAt(st.sc, th, st.flex).R)} м`;
+    draw3d();
+  }
+
   function draw3d() {
     if (!V3.ok || !V3.last) return;
     const { camera, renderer, scene, stage } = V3, t = V3.target, d = V3.dist;
@@ -1174,6 +1281,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     V3.ann.arc.material.color.setHex(light ? 0x1f8200 : 0x4dff0f); V3.ann.base.material.color.setHex(light ? 0x1f8200 : 0x4dff0f);
     renderer.render(scene, camera);
     // подписи θ и λ — проекция точек сцены на холст
+    if (ANIM.on || !V3.labels) return;
     const w = stage.clientWidth, h = stage.clientHeight;
     [['fThL3', V3.labels.th], ['fLamL3', V3.labels.lam]].forEach(([id, v]) => {
       const s = v.clone().project(camera), e = $(id);
@@ -1394,7 +1502,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     if (deg > real) warn.textContent = `Выше ~${real}° — за пределами реальной техники: ботинок начинает касаться снега, и модель становится условной. На 90° радиус стремится к нулю, а перегрузка без ангуляции — к бесконечности.`;
     $('sV').textContent = '≈ ' + Math.round(c.v * 3.6) + ' км/ч';
     const ts = turnStats(c);
-    $('sAvg').textContent = f1(ts.avg) + ' м';
+    $('rAvg').textContent = f1(ts.avg);
     $('sAlong').textContent = f1(ts.along) + ' м';
     $('sWidth').textContent = f1(ts.width) + ' м';
 
@@ -1478,6 +1586,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     }
     // едем по следу с расчётной скоростью v, м/с
     if (!reduce.matches && cur) sPos += cur.v * dt;
+    animStep(dt);
     drawMover();
     requestAnimationFrame(frame);
   }
