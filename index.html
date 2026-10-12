@@ -120,6 +120,10 @@ h1 span{color:var(--muted)}
 .ends{display:flex;justify-content:space-between;font:400 11px/1 var(--font-mono);color:var(--muted)}
 .ends.with-btn{padding-right:54px}
 .hint{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.prof{display:block;width:100%;height:auto;margin-top:2px}
+.prof-line{fill:none;stroke:var(--green);stroke-width:1.5}
+.prof-area{fill:var(--green);fill-opacity:.12}
+.t.sm{font-size:10px}
 .hint.warn{color:var(--fg);border-left:2px solid var(--green);padding-left:8px}
 input[type=range]{--c:var(--fg);--p:50%;-webkit-appearance:none;appearance:none;flex:1;min-width:0;width:100%;height:32px;margin:0;background:transparent;cursor:pointer}
 #angle{--c:var(--green)}
@@ -285,13 +289,18 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
 
     <div class="side">
       <section class="panel readout" aria-labelledby="hR">
-        <div class="phead"><h2 id="hR">Радиус поворота</h2><span>R</span></div>
+        <div class="phead"><h2 id="hR">Радиус в вершине дуги</h2><span>R</span></div>
         <div class="big"><span id="rOut">10,6</span><span class="unit">м</span></div>
         <p class="formula"><b id="fSc">15,0</b> м × cos <b class="g" id="fTh">45</b>° = <b class="bl" id="fR">10,6</b> м<span id="fFlex" hidden> · <span id="fFlexW">с врезанием</span> <b id="fFlexP">0</b> мм — <b class="bl" id="fFlexR">10,6</b> м</span></p>
         <dl class="stats">
           <div><dt>Короче выреза</dt><dd id="sShort">на 29 %</dd></div>
           <div><dt>Перегрузка*</dt><dd id="sG">1,41 g</dd></div>
           <div><dt>Скорость равновесия*</dt><dd id="sV">≈ 37 км/ч</dd></div>
+        </dl>
+        <dl class="stats">
+          <div><dt>Средний радиус поворота</dt><dd id="sAvg">12,8 м</dd></div>
+          <div><dt>Поворот вдоль склона</dt><dd id="sAlong">22,6 м</dd></div>
+          <div><dt>Ширина змейки</dt><dd id="sWidth">15,6 м</dd></div>
         </dl>
       </section>
 
@@ -306,6 +315,20 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
           </div>
           <div class="ends with-btn"><span>0°</span><span id="angleMax">90°</span></div>
           <p class="hint warn" id="angleWarn" hidden></p>
+        </div>
+        <div class="ctrl">
+          <div class="chead"><label for="edgeIn">Закантовка</label><output id="edgeOut" for="edgeIn">средняя</output></div>
+          <input type="range" id="edgeIn" min="0" max="100" step="1" value="50">
+          <div class="ends"><span>резкая</span><span>плавная</span></div>
+          <svg class="prof" viewBox="0 0 240 54" aria-hidden="true">
+            <line class="g-axis" x1="6" y1="40" x2="234" y2="40"/>
+            <path id="edgeArea" class="prof-area"/>
+            <path id="edgeLine" class="prof-line"/>
+            <text class="t sm" x="6" y="52">смена кантов</text>
+            <text class="t sm" x="120" y="52" text-anchor="middle">вершина</text>
+            <text class="t sm" x="234" y="52" text-anchor="end">смена кантов</text>
+          </svg>
+          <p class="hint" id="edgeHint"></p>
         </div>
         <div class="ctrl">
           <div class="chead"><label for="sidecut">Радиус бокового выреза</label><output id="scOut" for="sidecut">15,0 м</output></div>
@@ -413,6 +436,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
           <li>Формула одна для лыж и сноуборда. Разница в радиусе выреза: у доски он обычно примерно вдвое меньше, поэтому дуги круче.</li>
           <li><b>Прогиб.</b> С врезанием канта R = L² / (8h), h = d / cos θ + p · tg θ, где L — длина канта, d = L² / (8 · R выреза) — глубина выреза, p — врезание канта под ботинком. При p = 0 это та же формула. Не учтены жёсткость по длине, кручение носка, камбер и рокер.</li>
           <li>Модель идеальная: ведение на канте без проскальзывания. На малых углах <span data-ski="лыжа" data-board="доска">лыжа</span> держит слабо и легко соскальзывает.</li>
+          <li><b>Средний радиус</b> — длина дуги, делённая на угол, на который повернула траектория. Угол закантовки меняется по ходу поворота (ползунок «Закантовка»), поэтому средний радиус больше радиуса в вершине. Направление следа в смене кантов условно 65° к линии спуска, то есть поворот на 130°.</li>
           <li>* Скорость равновесия — при ней наклон тела уравновешивает поворот: медленнее — завалишься внутрь, быстрее — вынесет наружу. Оценка без учёта уклона: v = √(g · R · tg λ), перегрузка = 1 / cos λ, где λ — наклон тела. Без ангуляции λ равен углу закантовки; с ангуляцией тело наклонено меньше, и скорость нужна меньше.</li>
         </ul>
       </div>
@@ -446,10 +470,10 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
   // ang — ангуляция, °: насколько угол закантовки больше наклона тела
-  const state = { mode: 'ski', ski: { th: 45, sc: 15, ang: 0, flex: 0 }, board: { th: 45, sc: 8, ang: 0, flex: 0 } };
+  const state = { mode: 'ski', ski: { th: 45, sc: 15, ang: 0, flex: 0, edge: 50 }, board: { th: 45, sc: 8, ang: 0, flex: 0, edge: 50 } };
   try { const m = localStorage.getItem('rs-turn-mode'); if (m === 'ski' || m === 'board') state.mode = m; } catch (e) {}
 
-  const angle = $('angle'), sidecut = $('sidecut'), leanIn = $('lean'), flexIn = $('flexIn'), play = $('play');
+  const angle = $('angle'), sidecut = $('sidecut'), leanIn = $('lean'), flexIn = $('flexIn'), edgeIn = $('edgeIn'), play = $('play');
   let cur = null, last = 0, playing = false, dir = 1;
 
   function calc() {
@@ -461,6 +485,27 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     const lean = Math.min(st.th, Math.max(lamMin, st.th - st.ang)), lam = lean * RAD;
     const v = Math.sqrt(Math.max(0, G * R * Math.tan(lam)));
     return { m, st, th, R, fx, lean, lam, lamMin, v: isFinite(v) ? v : 0 };
+  }
+
+  /* ---------- профиль закантовки ---------- */
+  // u — доля пути от вершины дуги (0) до смены кантов (1); θ = θmax · cos(π/2 · u^q).
+  // q > 1 — резкая: угол набирается сразу после смены кантов и держится; q < 1 — плавная: максимум только в вершине.
+  // Ползунок 0…100: 0 → q = 6, 50 → q = 1 (косинус), 100 → q = 0,4.
+  const edgeQ = t => (t /= 100) <= 0.5 ? Math.pow(6, 1 - 2 * t) : Math.pow(0.4, 2 * t - 1);
+  const edgeShape = (u, q) => Math.cos(Math.PI / 2 * Math.pow(Math.min(1, Math.max(0, u)), q));
+
+  // Один поворот от смены кантов до смены кантов, в метрах: курс меняется от +PHI до −PHI.
+  // Средний радиус = длина дуги / угол поворота траектории (2·PHI); длина — вдоль линии спуска;
+  // ширина змейки — поперёк склона между вершинами соседних дуг.
+  function turnStats(c) {
+    const q = edgeQ(c.st.edge), n = 600, dpsi = 2 * PHI / n;
+    let s = 0, x = 0, y = 0, ymax = 0;
+    for (let i = 0; i < n; i++) {
+      const psi = PHI - (i + 0.5) * dpsi, th = c.th * edgeShape(Math.abs(psi) / PHI, q);
+      const ds = flexAt(c.st.sc, th, c.st.flex).R * dpsi;
+      s += ds; x += ds * Math.cos(psi); y += ds * Math.sin(psi); ymax = Math.max(ymax, y);
+    }
+    return { avg: s / (2 * PHI), along: x, width: 2 * ymax };
   }
 
   /* ---------- вид сверху: склон и S-образный след ---------- */
@@ -572,7 +617,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     // Угол закантовки по ходу поворота: 0 в смене кантов (курс ±PHI), максимум — в вершине дуги.
     // Радиус в каждой точке — R_выреза × cos θ, поэтому дуга пологая на входе и выходе и крутая в вершине.
     const sc = c.st.sc, thMax = c.th;
-    const thOf = psi => thMax * Math.cos(Math.PI / 2 * Math.min(1, Math.abs(psi) / PHI));
+    const q = edgeQ(c.st.edge), thOf = psi => thMax * edgeShape(Math.abs(psi) / PHI, q);
     const rOf = psi => Math.max(flexAt(sc, thOf(psi), c.st.flex).R * S, 0.5);
     const r = rOf(0);
     track = buildTrack(rOf, thOf);
@@ -985,6 +1030,24 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     warn.hidden = deg <= real;
     if (deg > real) warn.textContent = `Выше ~${real}° — за пределами реальной техники: ботинок начинает касаться снега, и модель становится условной. На 90° радиус стремится к нулю, а перегрузка без ангуляции — к бесконечности.`;
     $('sV').textContent = '≈ ' + Math.round(c.v * 3.6) + ' км/ч';
+    const ts = turnStats(c);
+    $('sAvg').textContent = f1(ts.avg) + ' м';
+    $('sAlong').textContent = f1(ts.along) + ' м';
+    $('sWidth').textContent = f1(ts.width) + ' м';
+
+    // профиль закантовки за один поворот
+    const q = edgeQ(c.st.edge); let dl = '';
+    for (let i = 0; i <= 60; i++) { const v = i / 60, x = 6 + 228 * v, y = 40 - 32 * edgeShape(Math.abs(2 * v - 1), q); dl += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
+    $('edgeLine').setAttribute('d', dl);
+    $('edgeArea').setAttribute('d', dl + 'L234 40L6 40Z');
+    const t = c.st.edge;
+    $('edgeOut').textContent = t < 20 ? 'резкая' : t < 40 ? 'быстрая' : t < 60 ? 'средняя' : t < 80 ? 'плавная' : 'очень плавная';
+    $('edgeHint').textContent = t < 35
+      ? 'Угол набирается сразу после смены кантов и держится — средний радиус близок к радиусу в вершине.'
+      : t <= 65
+        ? 'Угол растёт к вершине дуги и так же плавно уходит — средний радиус больше радиуса в вершине.'
+        : 'Наибольший угол только в самой вершине — поворот заметно шире, чем по радиусу в вершине.';
+    fill(edgeIn);
     $('angleOut').textContent = deg + '°';
     $('scOut').textContent = f1(c.st.sc) + ' м';
     angle.setAttribute('aria-valuetext', deg + ' градусов');
@@ -1018,6 +1081,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
     angle.max = m.thMax; angle.value = Math.round(st.th);
     sidecut.min = m.scMin; sidecut.max = m.scMax; sidecut.step = m.scStep; sidecut.value = st.sc;
     flexIn.value = st.flex;
+    edgeIn.value = st.edge;
     $('angleMax').textContent = m.thMax + '°';
     $('scMin').textContent = m.scMin + ' м';
     $('scMax').textContent = m.scMax + ' м';
@@ -1062,6 +1126,7 @@ input[type=range]:focus-visible{outline:2px solid var(--c);outline-offset:4px}
   });
   sidecut.addEventListener('input', () => { state[state.mode].sc = +sidecut.value; render(); });
   flexIn.addEventListener('input', () => { state[state.mode].flex = +flexIn.value; render(); });
+  edgeIn.addEventListener('input', () => { state[state.mode].edge = +edgeIn.value; render(); });
   leanIn.addEventListener('input', () => {
     const st = state[state.mode];
     st.ang = Math.max(0, Math.round(st.th) - +leanIn.value);
