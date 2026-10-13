@@ -923,6 +923,127 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
     else update3d(p, c);
   }
 
+  // Корпус в куртке: [доля длины от тазобедренных суставов к плечам, полуширина, полуглубина, сдвиг вперёд], м.
+  // Низ куртки закрывает ягодицы, талия уже груди, к плечам сечение сужается в шею.
+  const TORSO = [[-0.15, 0.16, 0.112, -0.004], [-0.1, 0.172, 0.122, -0.006], [0, 0.174, 0.124, -0.004], [0.22, 0.162, 0.118, 0.006], [0.45, 0.17, 0.122, 0.014],
+    [0.66, 0.186, 0.13, 0.02], [0.82, 0.192, 0.124, 0.012], [0.93, 0.176, 0.11, 0], [1, 0.125, 0.088, -0.006], [1.06, 0.07, 0.06, 0]];
+  const torsoAt = t => {
+    let i = 0; while (i < TORSO.length - 2 && TORSO[i + 1][0] < t) i++;
+    const a = TORSO[i], b = TORSO[i + 1], k = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0])));
+    return [1, 2, 3].map(j => a[j] + (b[j] - a[j]) * k);
+  };
+
+  // Тело из сечений: rows — [t, полуширина, полуглубина, сдвиг вперёд]; сечение — суперэллипс (ex = 2 — эллипс).
+  // Ось — y от 0 до 1, вперёд — +z, торцы закрыты.
+  function loftGeo(rows, n = 28, ex = 2) {
+    const pos = [], idx = [], e = 2 / ex, sp = v => Math.sign(v) * Math.abs(v) ** e;
+    rows.forEach(([t, w, d, dz]) => {
+      for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; pos.push(w * sp(Math.sin(a)), t, d * sp(Math.cos(a)) + dz); }
+    });
+    for (let r = 0; r < rows.length - 1; r++) for (let i = 0; i < n; i++) {
+      const a = r * n + i, b = r * n + (i + 1) % n;
+      idx.push(a, b, b + n, a, b + n, a + n);
+    }
+    [[0, true], [rows.length - 1, false]].forEach(([r, bottom]) => {
+      const c = pos.length / 3; pos.push(0, rows[r][0], rows[r][3]);
+      for (let i = 0; i < n; i++) { const a = r * n + i, b = r * n + (i + 1) % n; if (bottom) idx.push(c, b, a); else idx.push(c, a, b); }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+
+  // Шлем — эллипсоид A×B×C. Нижний край зависит от азимута (0 — лоб): спереди высоко — вырез под маску,
+  // по бокам низко — закрывает уши, сзади — затылок.
+  function helmetShape() {
+    const A = 0.106, B = 0.122, C = 0.128, nu = 72, nv = 20, pos = [], nor = [], idx = [], edge = [];
+    const lim = az => { const c = Math.cos(az); return Math.PI * (0.7 - 0.25 * Math.max(0, c) ** 1.1 + 0.01 * Math.max(0, -c) ** 2); };
+    const pt = (az, v) => new THREE.Vector3(A * Math.sin(v) * Math.sin(az), B * Math.cos(v), C * Math.sin(v) * Math.cos(az));
+    const nm = q => new THREE.Vector3(q.x / (A * A), q.y / (B * B), q.z / (C * C)).normalize();
+    for (let i = 0; i < nu; i++) {
+      const az = i / nu * Math.PI * 2, e = lim(az);
+      for (let j = 0; j <= nv; j++) { const q = pt(az, e * j / nv), n = nm(q); pos.push(q.x, q.y, q.z); nor.push(n.x, n.y, n.z); }
+      edge.push(pt(az, e).multiplyScalar(0.985));
+    }
+    for (let i = 0; i < nu; i++) {
+      const i2 = (i + 1) % nu;
+      for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = i2 * (nv + 1) + j; idx.push(a, a + 1, b + 1, a, b + 1, b); }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.setIndex(idx);
+    // прорези вентиляции: точка на оболочке, нормаль, направление вдоль меридиана
+    const vents = [[0.32, 0.2], [-0.32, 0.2], [0.85, 0.3], [-0.85, 0.3], [Math.PI, 0.28]].map(([az, k]) => {
+      const v = k * Math.PI, q = pt(az, v);
+      return [q, nm(q), new THREE.Vector3(A * Math.cos(v) * Math.sin(az), -B * Math.sin(v), C * Math.cos(v) * Math.cos(az))];
+    });
+    return { geo, edge, vents, A, B, C, y: 0.02, z: -0.008 };
+  }
+
+  // Маска: суперэллипс W×H с выемкой под нос, к вискам уже; изогнута по цилиндру R и чуть по вертикали.
+  // Ремешок идёт от краёв маски вокруг затылка по шлему.
+  function goggleShape(HL) {
+    const W = 0.188, H = 0.084, R = 0.13, Z = 0.131, Y = -0.006, N = 72, K = 6;
+    const outline = ph => {
+      const c = Math.cos(ph), s = Math.sin(ph), x = W / 2 * Math.sign(c) * Math.abs(c) ** 0.55;
+      let y = H / 2 * Math.sign(s) * Math.abs(s) ** 0.55 * (1 - 0.22 * (2 * x / W) ** 2);
+      if (y < 0) y += 0.024 * Math.exp(-((x / 0.028) ** 2));
+      return [x, y];
+    };
+    const bend = (x, y, dz = 0) => { const a = x / R, r = R + dz; return new THREE.Vector3(r * Math.sin(a), Y + y, Z - R + r * Math.cos(a) - 2 * y * y); };
+    const pos = [], idx = [];
+    pos.push(...bend(0, 0).toArray());
+    for (let k = 1; k <= K; k++) for (let i = 0; i < N; i++) { const [x, y] = outline(i / N * Math.PI * 2); pos.push(...bend(x * k / K, y * k / K).toArray()); }
+    for (let i = 0; i < N; i++) idx.push(0, 1 + i, 1 + (i + 1) % N);
+    for (let k = 1; k < K; k++) for (let i = 0; i < N; i++) {
+      const a = 1 + (k - 1) * N + i, b = 1 + (k - 1) * N + (i + 1) % N;
+      idx.push(a, a + N, b + N, a, b + N, b);
+    }
+    const lens = new THREE.BufferGeometry();
+    lens.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); lens.setIndex(idx); lens.computeVertexNormals();
+    const rim = [];
+    for (let i = 0; i < N; i++) { const [x, y] = outline(i / N * Math.PI * 2); rim.push(bend(x, y, -0.004)); }
+    const k = Math.sqrt(1 - ((Y - HL.y) / HL.B) ** 2), ea = HL.A * k + 0.011, ec = HL.C * k + 0.011;
+    const eR = bend(W / 2, 0, -0.006), strap = [new THREE.Vector3(eR.x, 0, eR.z)];
+    for (let az = 1.05; az <= 2 * Math.PI - 1.05 + 1e-6; az += 0.15) strap.push(new THREE.Vector3(ea * Math.sin(az), 0, HL.z + ec * Math.cos(az)));
+    strap.push(new THREE.Vector3(-eR.x, 0, eR.z));
+    return { lens, rim, strap, y: Y };
+  }
+
+  // Поворот по базису: ось y — вдоль dir, ось z — как можно ближе к hint (обычно «вперёд»)
+  let basisM = null;
+  function basis(m, dir, hint) {
+    basisM = basisM || new THREE.Matrix4();
+    const y = dir.clone().normalize();
+    let z = hint.clone().addScaledVector(y, -hint.dot(y));
+    if (z.lengthSq() < 1e-8) { z = Math.abs(y.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0); z.addScaledVector(y, -z.dot(y)); }
+    z.normalize();
+    m.quaternion.setFromRotationMatrix(basisM.makeBasis(new THREE.Vector3().crossVectors(y, z), y, z));
+  }
+  // сегмент от from до to толщиной sx × sz; эллипсоид с осями sx, sy, sz
+  function orient(m, from, to, hint, sx, sz = sx) {
+    const d = new THREE.Vector3().subVectors(to, from);
+    basis(m, d, hint); m.position.copy(from); m.scale.set(sx, d.length() || 1e-4, sz);
+  }
+  function blob(m, pos, dir, hint, sx, sy, sz) { basis(m, dir, hint); m.position.copy(pos); m.scale.set(sx, sy, sz); }
+
+  // Два звена постоянной длины (бедро и голень, плечо и предплечье): средний сустав — в сторону pole.
+  // Если цель дальше вытянутой конечности, звенья чуть удлиняются, чтобы не было разрыва.
+  function ik(root, target, l1, l2, pole) {
+    const d = new THREE.Vector3().subVectors(target, root), L = d.length() || 1e-4; d.divideScalar(L);
+    const k = Math.max(1, L / (l1 + l2) * 1.001); l1 *= k; l2 *= k;
+    const x = (l1 * l1 - l2 * l2 + L * L) / (2 * L), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+    const n = pole.clone().addScaledVector(d, -pole.dot(d)).normalize();
+    return root.clone().addScaledVector(d, x).addScaledVector(n, h);
+  }
+  // на сколько точка q плоского рисунка отходит от прямой a–b, м (вектор сцены)
+  const offLine = (q, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y, t = ((q.x - a.x) * dx + (q.y - a.y) * dy) / (dx * dx + dy * dy || 1);
+    return new THREE.Vector3((q.x - a.x - t * dx) / KPX, -(q.y - a.y - t * dy) / KPX, 0);
+  };
+
+
   /* ---------- вид спереди в 3D ---------- */
   // Та же поза, что у плоского рисунка (pose/solvePose), но фигура и снаряжение объёмные (three.js).
   // Координаты сцены в метрах: x — вправо, y — вверх, z — к зрителю (лыжник едет на нас).
@@ -956,7 +1077,7 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
       const M = (color, roughness = 0.6, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
       const mat = {
         jacket: M(0xF26A1B, 0.55), steel: M(0x6E7B85, 0.5, 0.2), dark: M(0x26292E, 0.5),
-        white: M(0xEDF0F3, 0.35), black: M(0x17191C, 0.45), lens: M(0xFF8A2A, 0.12, 0.75), strap: M(0x4A5058, 0.6),
+        white: M(0xEDF0F3, 0.35), black: M(0x17191C, 0.45), lens: new THREE.MeshStandardMaterial({ color: 0xFF8A2A, roughness: 0.18, metalness: 0.45, emissive: 0x8a3200, emissiveIntensity: 0.55 }), strap: M(0x4A5058, 0.6),
         pants: M(0x1F5566, 0.62), skin: M(0xE2B59A, 0.7), helmet: M(0xF1F3F5, 0.28, 0.05), glove: M(0x1B1D20, 0.7), ski: M(0x35B8FF, 0.32, 0.1), pole: new THREE.MeshStandardMaterial({ color: 0x4dff0f, emissive: 0x2a8a00, emissiveIntensity: 0.7, roughness: 0.35 })
       };
       const snowMat = M(0xe6eaf0, 0.95);
@@ -974,44 +1095,59 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
         const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
         o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; parent.add(o); return o;
       };
-      // Тело: конечности сужаются к запястьям и щиколоткам (у цилиндра верх — радиус 1, низ — k).
-      const taper = k => new THREE.CylinderGeometry(1, k, 1, 22, 1);
-      const cylG = new THREE.CylinderGeometry(1, 1, 1, 20, 1), sphG = new THREE.SphereGeometry(1, 28, 20);
-      const shinG = taper(0.7), thighG = taper(0.72), upperG = taper(0.8), foreG = taper(0.75);
-      // корпус — тело вращения: таз, талия, грудь, плечи; высота 1 по центру
-      const torsoG = new THREE.LatheGeometry([[0, 0], [0.8, 0], [0.78, 0.1], [0.72, 0.26], [0.82, 0.48], [0.96, 0.7], [1, 0.84], [0.88, 0.95], [0.5, 1], [0, 1]]
-        .map(([r, y]) => new THREE.Vector2(r, y)), 32);
-      torsoG.translate(0, -0.5, 0);
+      mat.liner = M(0x2B2F35, 0.85); mat.liner.side = THREE.BackSide; mat.vent = M(0x5C636B, 0.6); mat.liner2 = M(0x2B2F35, 0.85);
+      const sphG = new THREE.SphereGeometry(1, 28, 20), cylG = new THREE.CylinderGeometry(1, 1, 1, 20, 1);
+      cylG.translate(0, 0.5, 0);                                     // цилиндр от 0 до 1 вдоль сегмента
+      // Части тела — сечения-эллипсы вдоль кости: [доля длины, полуширина, полуглубина, сдвиг вперёд].
+      // У рук и ног размеры — в долях толщины, у корпуса — в метрах. Бедро и грудь выпирают вперёд, икры — назад.
+      const G = {
+        thigh: loftGeo([[-0.06, 0.9, 0.9, 0], [0, 1, 1, 0], [0.3, 1, 1.04, 0.05], [0.65, 0.88, 0.92, 0.04], [0.92, 0.7, 0.72, 0], [1, 0.66, 0.66, 0], [1.07, 0.55, 0.55, 0]]),
+        shin: loftGeo([[-0.06, 0.85, 0.85, 0], [0, 0.98, 0.98, 0], [0.22, 1, 1.1, -0.12], [0.5, 0.9, 0.95, -0.08], [0.8, 0.78, 0.78, 0], [1, 0.74, 0.74, 0]]),
+        upper: loftGeo([[-0.08, 0.92, 0.92, 0], [0.2, 1.02, 1, 0], [0.6, 0.9, 0.86, 0], [1, 0.78, 0.76, 0], [1.08, 0.66, 0.66, 0]]),
+        fore: loftGeo([[-0.08, 0.88, 0.85, 0], [0, 1, 0.95, 0], [0.3, 1.04, 0.98, 0], [1, 0.8, 0.72, 0]]),
+        cuff: loftGeo([[0, 0.9, 0.9, 0], [0.25, 1, 1, 0], [1, 1.12, 1.12, 0]]),
+        torso: loftGeo(TORSO, 40, 2.5),
+        collar: loftGeo([[0, 1, 1, 0], [1, 0.9, 0.88, 0.06]])
+      };
       const rig = new THREE.Group(); scene.add(rig);                 // райдер целиком: курс и отражение при спуске
       const body = new THREE.Group(); rig.add(body);
-      const mesh = (g, m) => { const o = new THREE.Mesh(g, m); o.castShadow = true; body.add(o); return o; };
+      const mesh = (g, m, parent = body) => { const o = new THREE.Mesh(g, m); o.castShadow = true; parent.add(o); return o; };
       const two = (g, m) => [mesh(g, m), mesh(g, m)];
       const parts = {
-        shin: two(shinG, mat.pants), thigh: two(thighG, mat.pants), knee: two(sphG, mat.pants), hip: two(sphG, mat.pants),
-        pelvis: mesh(sphG, mat.pants), torso: mesh(torsoG, mat.jacket), hem: mesh(cylG, mat.jacket),
-        zip: mesh(new THREE.BoxGeometry(1, 1, 1), mat.glove), collar: mesh(cylG, mat.jacket), neck: mesh(cylG, mat.pants),
-        shoulder: two(sphG, mat.pants), upper: two(upperG, mat.pants), elbow: two(sphG, mat.pants), fore: two(foreG, mat.pants),
-        hand: two(sphG, mat.glove),
+        thigh: two(G.thigh, mat.pants), knee: two(sphG, mat.pants), shin: two(G.shin, mat.pants), gaiter: two(G.cuff, mat.pants),
+        pelvis: mesh(sphG, mat.pants), torso: mesh(G.torso, mat.jacket), collar: mesh(G.collar, mat.jacket), neck: mesh(cylG, mat.glove),
+        delt: two(sphG, mat.pants), upper: two(G.upper, mat.pants), elbow: two(sphG, mat.pants), fore: two(G.fore, mat.pants),
+        glove: two(G.cuff, mat.glove), hand: two(sphG, mat.glove), thumb: two(sphG, mat.glove),
         poles: [0, 1].map(() => ({ shaft: mesh(cylG, mat.pole), grip: mesh(cylG, mat.glove), basket: mesh(cylG, mat.glove) }))
       };
-      // Голова смотрит по +z: лицо, шлем, маска с изогнутой линзой и ремешком.
+      // молния по передней линии куртки — повторяет грудь и живот, тянется вместе с корпусом
+      const zip = [];
+      for (let t = -0.13; t <= 1.001; t += 0.04) { const r = torsoAt(t); zip.push(new THREE.Vector3(0, t, r[1] + r[2] + 0.002)); }
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(zip), 40, 0.0045, 6), mat.glove, parts.torso);
+
+      // Голова, лицо смотрит по +z: подшлемник, скулы с подбородком, нос
       const head = new THREE.Group(); body.add(head);
-      const core = new THREE.Mesh(sphG, mat.glove); core.scale.set(0.102, 0.108, 0.1); core.position.set(0, -0.004, -0.022); head.add(core); // подшлемник: шлем не просвечивает
-      const face = new THREE.Mesh(sphG, mat.skin); face.scale.set(0.082, 0.1, 0.092); face.position.y = -0.015; head.add(face);
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.128, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.56), mat.helmet);
-      shell.position.y = 0.012; shell.castShadow = true; head.add(shell);
-      box(0.13, 0.012, 0.045, mat.helmet, 0, 0.052, 0.118, head);                                    // козырёк
-      const GA = Math.PI * 0.76;                                                                      // ширина маски по дуге
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 32, 1, true, -GA / 2, GA), mat.lens);
-      lens.position.y = -0.006; head.add(lens);
-      const ring = (r, tube, arc, from, y, m) => {
-        const t = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 40, arc), m);
-        t.rotation.set(Math.PI / 2, -from, 0, 'YXZ'); t.position.y = y; head.add(t); return t;
-      };
-      ring(0.121, 0.007, GA, Math.PI / 2 - GA / 2, 0.019, mat.glove);                                // оправа сверху
-      ring(0.121, 0.007, GA, Math.PI / 2 - GA / 2, -0.031, mat.glove);                               // оправа снизу
-      ring(0.131, 0.008, Math.PI * 2 - GA, Math.PI / 2 + GA / 2, -0.006, mat.glove);                 // ремешок вокруг шлема
-      const goggles = lens;
+      const hm = (m, x, y, z, sx, sy, sz) => { const o = mesh(sphG, m, head); o.position.set(x, y, z); o.scale.set(sx, sy, sz); return o; };
+      hm(mat.liner2, 0, 0.005, -0.012, 0.078, 0.095, 0.094);       // под шлемом — подшлемник
+      hm(mat.skin, 0, -0.05, 0.03, 0.062, 0.072, 0.066);
+      hm(mat.skin, 0, -0.045, 0.099, 0.013, 0.024, 0.02);
+      // Шлем: оболочка с вырезом под маску, закрывает уши и затылок; внутри тёмная подкладка, по краю окантовка, сверху вентиляция
+      const HL = helmetShape(), atHelmet = o => { o.position.set(0, HL.y, HL.z); return o; };
+      atHelmet(mesh(HL.geo, mat.helmet, head));
+      atHelmet(mesh(HL.geo, mat.liner, head)).scale.setScalar(0.94);
+      atHelmet(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(HL.edge, true), 120, 0.006, 8, true), mat.glove, head));
+      HL.vents.forEach(([q, n, t]) => {
+        const v = mesh(new THREE.BoxGeometry(0.01, 0.006, 0.04), mat.vent, head);
+        basis(v, n, t); v.position.set(q.x, q.y + HL.y, q.z + HL.z);
+      });
+      // Маска: изогнутая линза в мягкой оправе, широкий ремешок вокруг шлема; ремешок шлема под подбородком
+      const GG = goggleShape(HL);
+      mesh(GG.lens, mat.lens, head);
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(GG.rim, true), 120, 0.0095, 8, true), mat.glove, head);
+      const strap = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(GG.strap), 60, 0.008, 8), mat.glove, head);
+      strap.position.y = GG.y; strap.scale.y = 2.3;
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[-0.088, -0.04, -0.004], [-0.062, -0.098, 0.02], [0, -0.128, 0.04], [0.062, -0.098, 0.02], [0.088, -0.04, -0.004]]
+        .map(q => new THREE.Vector3(q[0], q[1], q[2]))), 40, 0.0035, 6), mat.glove, head);
 
       // разметка поверх фигуры: дуга θ, линия λ, вертикаль, центр масс
       const lineM = (color, dashed) => dashed
@@ -1033,7 +1169,7 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
         g.setDrawRange(0, 0);
         const l = new THREE.Line(g, trailMat); l.position.y = 0.004; l.frustumCulled = false; scene.add(l); return l;
       });
-      Object.assign(V3, { ok: true, renderer, scene, camera, stage, canvas, mat, snowMat, grid, parts, head, goggles, ann, com, box, rig, trails, gear: [] });
+      Object.assign(V3, { ok: true, renderer, scene, camera, stage, canvas, mat, snowMat, grid, parts, head, ann, com, box, rig, trails, gear: [] });
       $('front').classList.add('is3d');
 
       // вращение перетаскиванием; на телефоне — только по горизонтали, чтобы страница прокручивалась
@@ -1109,7 +1245,7 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
         box(0.07, 0.06, 0.11, mat.dark, 0.035, 0.07, -0.26, g);                   // пятка
         box(0.1, 0.115, 0.3, mat.white, 0.035, 0.1, -0.02, g);                    // нижняя скорлупа
         const cuff = box(0.104, 0.15, 0.15, mat.white, 0.035, 0.228, -0.07, g);   // манжета
-        cuff.rotation.x = 0.26;
+        cuff.rotation.x = 0.34;
         box(0.108, 0.025, 0.155, mat.dark, 0.035, 0.29, -0.05, g);                // ремень
         [[0.08, 0.06], [0.13, 0.0], [0.2, -0.04], [0.25, -0.03]].forEach(([y, z]) =>
           box(0.014, 0.014, 0.055, mat.black, 0.035 + 0.055, y, z, g));          // клипсы
@@ -1135,25 +1271,17 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
     V3.gear.forEach(g => { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); V3.rig.add(g); });
   }
 
-  const UP3 = typeof THREE !== 'undefined' ? new THREE.Vector3(0, 1, 0) : null;
-  function setSeg(m, a, b, rx, rz) {
-    const d = new THREE.Vector3().subVectors(b, a), len = d.length() || 1e-4;
-    m.position.copy(a).addScaledVector(d, 0.5);
-    m.scale.set(rx, len, rz === undefined ? rx : rz);
-    m.quaternion.setFromUnitVectors(UP3, d.normalize());
-  }
-  const setBall = (m, p, r) => { m.position.copy(p); m.scale.setScalar(r); };
-
   function update3d(p, c, A) {
     if (!V3.ok) return;
     V3.last = { p, c };
-    const ski = p.ski, th = A ? A.th : c.th, { parts, head, goggles } = V3;
+    const ski = p.ski, th = A ? A.th : c.th, { parts, head } = V3;
     // при спуске райдер развёрнут по курсу, правый поворот — зеркальная копия левого
     if (A) { V3.rig.rotation.set(0, A.heading, 0); V3.rig.scale.set(A.side, 1, 1); }
     else { V3.rig.rotation.set(0, 0, 0); V3.rig.scale.set(1, 1, 1); }
     [V3.ann.arc, V3.ann.base, V3.ann.lam, V3.ann.vert, V3.com].forEach(o => { o.visible = !A; });
-    const P = (q, z = 0) => new THREE.Vector3(q.x / KPX, -q.y / KPX, z);
-    const mid = (a, b) => a.clone().add(b).multiplyScalar(0.5);
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const P = (q, z = 0) => V(q.x / KPX, -q.y / KPX, z);
+    const rot = (x, y, z) => V(x * Math.cos(th) - y * Math.sin(th), x * Math.sin(th) + y * Math.cos(th), z);
 
     if (ski) {
       V3.gear[0].position.set(0, 0, 0); V3.gear[1].position.set(-p.D / KPX, 0, 0);
@@ -1163,67 +1291,86 @@ body[data-mode="ski"] .pw.ski{background:var(--skiblue)}
       if (V3.boardInner) { V3.boardInner.scale.x = p.toe ? -1 : 1; V3.boardInner.position.x = p.toe ? 0.25 : 0; }
     }
 
-    // ноги: голень от верха ботинка, колено чуть вперёд, бедро
-    const legs = ski
-      ? [[P(p.top), P(p.kneeO, 0.1), P(p.hipO, -0.02)], [P(p.topI), P(p.kneeI, 0.1), P(p.hipI, -0.02)]]
-      : [[P(p.top, 0.27), P(p.knee, 0.27), P(p.hip, 0.12)], [P(p.top, -0.27), P(p.knee, -0.27), P(p.hip, -0.12)]];
-    legs.forEach(([a, k, h], i) => {
-      setSeg(parts.shin[i], a, k, 0.058); setSeg(parts.thigh[i], k, h, 0.088);
-      setBall(parts.knee[i], k, 0.06); setBall(parts.hip[i], h, 0.085);
+    // Скелет. Во фронтальной плоскости — точки плоского рисунка (тазобедренные суставы, плечи, голова),
+    // вглубь — стойка: таз над пятками, колени над носками ботинок, корпус наклонён вперёд, руки впереди.
+    let ankles, hips, Hc, S, headC, f;
+    if (ski) {
+      const ank = rot(0.035, 0.13, -0.05);                                         // голеностоп внутри ботинка
+      ankles = [ank, ank.clone().add(V(-p.D / KPX, 0, 0))];
+      Hc = P(mid2(p.hipO, p.hipI), -0.08);
+      hips = [P(p.hipO, -0.08).lerp(Hc, 0.38), P(p.hipI, -0.08).lerp(Hc, 0.38)];  // суставы уже стойки: ноги чуть «домиком»
+      S = P(p.sh, 0.1); headC = P(p.head, 0.16);
+      f = hips[0].clone().sub(hips[1]).cross(S.clone().sub(Hc));
+    } else {
+      const ax = p.toe ? 0.15 : 0.1;
+      ankles = [rot(ax, 0.12, 0.27), rot(ax, 0.12, -0.27)];
+      Hc = P(p.hip); hips = [Hc.clone().add(V(0, 0, 0.1)), Hc.clone().add(V(0, 0, -0.1))];
+      S = P(p.sh); headC = P(p.head);
+      f = S.clone().sub(Hc).cross(V(0, 0, 1)).multiplyScalar(p.toe ? -1 : 1);     // грудью — к носкам
+    }
+    const u = S.clone().sub(Hc).normalize();                                       // вдоль позвоночника
+    f.addScaledVector(u, -f.dot(u)).normalize();                                   // вперёд (грудь)
+    const side0 = ski ? u.clone().cross(f) : V(0, 0, 1);                           // сторона 0: внешняя у лыжника, к носу доски у сноубордиста
+
+    // ноги: голень 43 см, бедро 45 см. Колено лыжника — вперёд и, как на плоском рисунке, внутрь при коленной ангуляции;
+    // колени сноубордиста — к носкам, как на рисунке, и чуть друг к другу (не «колесом»)
+    const k2 = ski ? [[p.kneeO, p.top, p.hipO], [p.kneeI, p.topI, p.hipI]] : [[p.knee, p.top, p.hip], [p.knee, p.top, p.hip]];
+    const legs = [0, 1].map(i => {
+      const pole = offLine(...k2[i]).add(ski ? V(0, 0, 0.25) : V(0, 0, i ? 0.03 : -0.03));
+      return [ankles[i], ik(ankles[i], hips[i], 0.43, 0.45, pole), hips[i]];
     });
-    const hipC = mid(legs[0][2], legs[1][2]);
-    const sh = P(p.sh, 0), dir = new THREE.Vector3().subVectors(sh, hipC).normalize();
-    const tilt = Math.atan2(-dir.x, dir.y);
-
-    // таз и корпус: у лыжника плечи поперёк кадра, у сноубордиста — вдоль доски
-    parts.pelvis.position.copy(hipC).addScaledVector(dir, 0.02);
-    parts.pelvis.scale.set(ski ? 0.175 : 0.12, 0.12, ski ? 0.12 : 0.175);
-    parts.pelvis.rotation.set(0, 0, tilt);
-    const tw = ski ? 0.19 : 0.12, td = ski ? 0.12 : 0.19;
-    const tb = hipC.clone().addScaledVector(dir, 0.04), tt = sh.clone().addScaledVector(dir, 0.03);
-    setSeg(parts.torso, tb, tt, tw, td);
-    setSeg(parts.hem, tb.clone().addScaledVector(dir, -0.05), tb.clone().addScaledVector(dir, 0.04), tw * 0.83, td * 0.85);
-    const front = ski ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(dir.y, -dir.x, 0).multiplyScalar(p.toe ? -1 : 1);
-    parts.zip.quaternion.copy(parts.torso.quaternion);
-    parts.zip.position.copy(mid(tb, tt)).addScaledVector(front, (ski ? td : tw) * 0.9);
-    parts.zip.scale.set(0.008, tb.distanceTo(tt) * 0.78, 0.008);
-
-    // шея и воротник
-    const headC = P(p.head, 0);
-    setSeg(parts.collar, sh.clone().addScaledVector(dir, -0.01), sh.clone().addScaledVector(dir, 0.06), 0.075);
-    setSeg(parts.neck, sh, headC.clone().addScaledVector(dir, -0.06), 0.052);
-
-    // руки: плечо — локоть — кисть в перчатке
-    const across = ski ? new THREE.Vector3(-dir.y, dir.x, 0) : new THREE.Vector3(0, 0, 1);
-    const down = dir.clone().multiplyScalar(-1);
-    const shs = [sh.clone().addScaledVector(across, 0.18).addScaledVector(dir, -0.04), sh.clone().addScaledVector(across, -0.18).addScaledVector(dir, -0.04)];
-    const hands = ski ? [P(p.armL, 0.3), P(p.armR, 0.3)] : [P(p.arm, 0.2), P(p.arm, -0.2).addScaledVector(down, 0.03)];
-    shs.forEach((s, i) => {
-      const e = mid(s, hands[i]).addScaledVector(down, 0.06); if (ski) e.z += 0.1;
-      setBall(parts.shoulder[i], s, 0.062); setSeg(parts.upper[i], e, s, 0.058);
-      setBall(parts.elbow[i], e, 0.047); setSeg(parts.fore[i], hands[i], e, 0.047);
-      parts.hand[i].position.copy(hands[i]); parts.hand[i].scale.set(0.045, 0.052, 0.05);
+    const gUp = ski ? [0.2, 0.11] : [0.15, 0.06];                                 // штанина поверх манжеты ботинка
+    legs.forEach(([an, kn, hp], i) => {
+      const sd = kn.clone().sub(an).normalize();
+      orient(parts.thigh[i], hp, kn, f, 0.098);
+      blob(parts.knee[i], kn.clone().addScaledVector(f, 0.008), sd, f, 0.06, 0.062, 0.062);
+      orient(parts.shin[i], kn, an, f, 0.064);
+      orient(parts.gaiter[i], an.clone().addScaledVector(sd, gUp[0]), an.clone().addScaledVector(sd, gUp[1]), f, 0.068, 0.08);
     });
 
-    // палки: от кисти назад и в сторону к снегу, длина не больше 1,2 м; у сноубордиста их нет
+    // таз, корпус, воротник; голова смотрит вперёд почти горизонтально и наклон корпуса повторяет наполовину,
+    // сноубордист смотрит по ходу — к носу доски
+    blob(parts.pelvis, Hc.clone().addScaledVector(u, -0.06).addScaledVector(f, -0.012), u, f, 0.17, 0.11, 0.125);
+    orient(parts.torso, Hc, S, f, 1);
+    orient(parts.collar, S.clone().addScaledVector(u, -0.03), S.clone().addScaledVector(u, 0.055), f, 0.078, 0.072);
+    const hUp = u.clone().multiplyScalar(0.6).add(V(0, 0.4, 0)).normalize();
+    const hF = ski ? f.clone() : V(0, 0, 0.85).addScaledVector(f, 0.5);
+    hF.y *= 0.35;
+    basis(head, hUp, hF); head.position.copy(headC);
+    orient(parts.neck, S.clone().addScaledVector(u, -0.02), headC.clone().addScaledVector(hUp, -0.07), f, 0.05);
+
+    // руки: плечо 31 см, предплечье с кистью 32 см; локти согнуты, смотрят назад и в стороны
+    const shJ = [1, -1].map(s => S.clone().addScaledVector(side0, 0.175 * s).addScaledVector(u, -0.045));
+    const at = (s, fw, up) => Hc.clone().addScaledVector(side0, s).addScaledVector(f, fw).addScaledVector(u, up);
+    const hands = ski ? [at(0.29, 0.36, 0.18), at(-0.28, 0.38, 0.2)] : [at(0.45, 0.25, 0.06), at(-0.36, 0.16, 0.02)];
+    hands.forEach((hd, i) => {
+      const out = side0.clone().multiplyScalar(i ? -1 : 1);
+      const el = ik(shJ[i], hd, 0.31, 0.32, out.clone().multiplyScalar(0.7).addScaledVector(f, -0.5).addScaledVector(u, -0.4));
+      const fd = hd.clone().sub(el).normalize(), wr = el.clone().addScaledVector(fd, 0.255);
+      const ad = el.clone().sub(shJ[i]).normalize();
+      blob(parts.delt[i], shJ[i].clone().addScaledVector(ad, 0.035).addScaledVector(u, 0.008), ad, f, 0.066, 0.085, 0.07);
+      orient(parts.upper[i], shJ[i], el, f, 0.062);
+      blob(parts.elbow[i], el, fd, f, 0.046, 0.046, 0.046);
+      orient(parts.fore[i], el, wr, out, 0.05, 0.046);
+      orient(parts.glove[i], wr.clone().addScaledVector(fd, 0.012), wr.clone().addScaledVector(fd, -0.065), out, 0.046, 0.042);
+      blob(parts.hand[i], hd, fd, out, 0.044, 0.052, 0.038);
+      blob(parts.thumb[i], hd.clone().addScaledVector(u, 0.032).addScaledVector(fd, 0.012).addScaledVector(out, -0.018), fd, out, 0.016, 0.03, 0.016);
+    });
+
+    // палки: от кисти к снегу, длина не больше 1,2 м; у сноубордиста их нет
     parts.poles.forEach((pl, i) => {
       [pl.shaft, pl.grip, pl.basket].forEach(o => { o.visible = ski; });
       if (!ski) return;
-      const hnd = hands[i];
-      const v = i === 1
-        ? new THREE.Vector3().subVectors(legs[0][0], legs[0][2]).normalize()      // внешняя — параллельно внешней ноге
-        : new THREE.Vector3(-0.16, 0.02 - hnd.y, -0.85).normalize();             // внутренняя — назад и чуть внутрь
-      const L = v.y < -0.05 ? Math.min(1.2, (hnd.y - 0.02) / -v.y) : 1.2;       // остриё у снега, палка не длиннее 1,2 м
-      const tipP = hnd.clone().addScaledVector(v, L), top = hnd.clone().addScaledVector(v, -0.07);
-      setSeg(pl.shaft, tipP, top, 0.009);
-      setSeg(pl.grip, hnd.clone().addScaledVector(v, 0.07), top.clone().addScaledVector(v, -0.02), 0.017);
-      setSeg(pl.basket, tipP.clone().addScaledVector(v, -0.1), tipP.clone().addScaledVector(v, -0.094), 0.045);
+      const hd = hands[i];
+      const v = i === 0
+        ? legs[0][0].clone().sub(legs[0][2]).normalize()      // внешняя — параллельно внешней ноге (от бедра к голеностопу)
+        : V(-0.16, 0.02 - hd.y, -0.85).normalize();           // внутренняя — назад и чуть внутрь
+      const L = v.y < -0.05 ? Math.min(1.2, (hd.y - 0.02) / -v.y) : 1.2;
+      const tip = hd.clone().addScaledVector(v, L), top = hd.clone().addScaledVector(v, -0.09);
+      orient(pl.shaft, tip, top, f, 0.009);
+      orient(pl.grip, hd.clone().addScaledVector(v, 0.06), top, f, 0.016);
+      orient(pl.basket, tip.clone().addScaledVector(v, -0.1), tip.clone().addScaledVector(v, -0.094), f, 0.045);
     });
-
-    // голова смотрит по ходу: лыжник — на нас, сноубордист — в сторону носков
-    head.position.copy(headC);
-    head.rotation.set(0, ski ? 0 : (p.toe ? -Math.PI / 2 : Math.PI / 2), 0);
-    head.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), tilt);
 
     if (A) return;   // при спуске разметку не рисуем, кадр строит animStep
 
